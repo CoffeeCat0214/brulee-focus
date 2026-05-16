@@ -18,49 +18,47 @@
   let cat = null;
   let dragState = null;
   let moodTimer = null;
+  let audioContext = null;
 
   init();
 
   async function init() {
+    if (!hasExtensionContext()) {
+      removeExistingRoot();
+      return;
+    }
+
     settings = await loadSettings();
     if (settings.enabled) {
       mount();
     }
 
-    chrome.storage.onChanged.addListener((changes, areaName) => {
-      if (areaName !== "sync") return;
-
-      settings = {
-        ...settings,
-        ...Object.fromEntries(
-          Object.entries(changes).map(([key, change]) => [key, change.newValue])
-        )
-      };
-
-      if (!settings.enabled) {
-        unmount();
-        return;
-      }
-
-      if (!root) mount();
-      applySettings();
-    });
+    watchSettings();
   }
 
   function loadSettings() {
     return new Promise((resolve) => {
-      chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
-        resolve({
-          ...DEFAULT_SETTINGS,
-          ...stored,
-          size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size
+      try {
+        chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
+          if (chrome.runtime.lastError) {
+            resolve(DEFAULT_SETTINGS);
+            return;
+          }
+
+          resolve({
+            ...DEFAULT_SETTINGS,
+            ...stored,
+            size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size
+          });
         });
-      });
+      } catch {
+        resolve(DEFAULT_SETTINGS);
+      }
     });
   }
 
   function mount() {
-    if (document.getElementById(ROOT_ID)) return;
+    removeExistingRoot();
 
     root = document.createElement("div");
     root.id = ROOT_ID;
@@ -70,6 +68,59 @@
 
     applySettings();
     scheduleMood();
+  }
+
+  function removeExistingRoot() {
+    document.getElementById(ROOT_ID)?.remove();
+  }
+
+  function watchSettings() {
+    try {
+      chrome.storage.onChanged.addListener((changes, areaName) => {
+        if (areaName !== "sync") return;
+
+        settings = {
+          ...settings,
+          ...Object.fromEntries(
+            Object.entries(changes).map(([key, change]) => [key, change.newValue])
+          )
+        };
+
+        if (!settings.enabled) {
+          unmount();
+          return;
+        }
+
+        if (!root) mount();
+        applySettings();
+      });
+    } catch {
+      removeExistingRoot();
+    }
+  }
+
+  function hasExtensionContext() {
+    try {
+      return Boolean(chrome?.runtime?.id && chrome?.storage?.sync);
+    } catch {
+      return false;
+    }
+  }
+
+  function getExtensionUrl(path) {
+    try {
+      return chrome.runtime.getURL(path);
+    } catch {
+      return "";
+    }
+  }
+
+  function saveSettings(nextSettings) {
+    try {
+      chrome.storage.sync.set(nextSettings);
+    } catch {
+      removeExistingRoot();
+    }
   }
 
   function unmount() {
@@ -92,27 +143,14 @@
     cat.type = "button";
     cat.title = "CoffeeCat";
     cat.setAttribute("aria-label", "CoffeeCat browser buddy");
+    const buddyImage = getExtensionUrl("assets/coffeecat-buddy.png");
     cat.innerHTML = `
-      <span class="steam steam-one"></span>
-      <span class="steam steam-two"></span>
-      <span class="ear ear-left"></span>
-      <span class="ear ear-right"></span>
-      <span class="head">
-        <span class="eye eye-left"></span>
-        <span class="eye eye-right"></span>
-        <span class="muzzle"></span>
-        <span class="whisker whisker-left"></span>
-        <span class="whisker whisker-right"></span>
-      </span>
-      <span class="cup">
-        <span class="coffee"></span>
-        <span class="handle"></span>
-      </span>
-      <span class="tail"></span>
+      <img class="cat-art" src="${buddyImage}" alt="">
+      <span class="purr-bubble">prr</span>
     `;
 
     cat.addEventListener("pointerdown", startDrag);
-    cat.addEventListener("click", sip);
+    cat.addEventListener("click", sipAndPurr);
     return cat;
   }
 
@@ -143,33 +181,65 @@
         image-rendering: pixelated;
         transform-origin: center bottom;
         animation: bob 4.8s steps(2, end) infinite;
+        transition: transform 160ms ease, filter 160ms ease;
       }
 
       .coffee-cat:active {
         cursor: grabbing;
       }
 
-      .coffee-cat.is-sipping .cup {
+      .coffee-cat:hover {
+        filter: drop-shadow(0 0 12px rgba(255, 186, 73, 0.55));
+      }
+
+      .cat-art {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+        image-rendering: pixelated;
+        filter:
+          drop-shadow(0 8px 0 rgba(74, 43, 29, 0.12))
+          drop-shadow(0 10px 18px rgba(74, 43, 29, 0.22));
+        transform-origin: center bottom;
+      }
+
+      .coffee-cat.is-sipping .cat-art {
         animation: sip 650ms steps(2, end);
       }
 
-      .coffee-cat.is-napping .eye {
-        height: 3px;
-        transform: translateY(4px);
+      .coffee-cat.is-purring .cat-art {
+        animation: purr 90ms steps(2, end) infinite;
       }
 
-      .head,
-      .ear,
-      .cup,
-      .tail,
-      .steam,
-      .muzzle,
-      .eye,
-      .whisker,
-      .coffee,
-      .handle {
+      .coffee-cat.is-purring .purr-bubble {
+        opacity: 1;
+        transform: translateY(-10px);
+      }
+
+      .coffee-cat.is-napping .cat-art {
+        transform: translateY(2px) scaleY(0.98);
+        filter:
+          drop-shadow(0 8px 0 rgba(74, 43, 29, 0.12))
+          drop-shadow(0 10px 18px rgba(74, 43, 29, 0.18))
+          saturate(0.92);
+      }
+
+      .purr-bubble {
         position: absolute;
-        box-sizing: border-box;
+        left: 5%;
+        top: 3%;
+        padding: 3px 5px;
+        border: 3px solid var(--fur-dark);
+        border-radius: 5px;
+        background: #fff8ef;
+        color: var(--fur-dark);
+        font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        letter-spacing: 0;
+        opacity: 0;
+        transform: translateY(0);
+        transition: opacity 120ms ease, transform 260ms steps(3, end);
       }
 
       .head {
@@ -322,7 +392,17 @@
 
       @keyframes sip {
         0%, 100% { transform: rotate(0deg); }
-        45%, 65% { transform: rotate(-12deg) translate(-6px, -4px); }
+        45%, 65% { transform: rotate(-4deg) translateY(-3px); }
+      }
+
+      @keyframes purr {
+        0%, 100% { transform: translateX(0); }
+        50% { transform: translateX(1px); }
+      }
+
+      @keyframes tail-purr {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-2px); }
       }
 
       @keyframes steam {
@@ -333,8 +413,8 @@
 
       @media (prefers-reduced-motion: reduce) {
         .coffee-cat,
-        .eye,
-        .steam {
+        .cat-art,
+        .coffee-cat.is-purring .cat-art {
           animation: none;
         }
       }
@@ -393,7 +473,7 @@
       y: Math.round(rect.top)
     };
 
-    chrome.storage.sync.set({ position: settings.position });
+    saveSettings({ position: settings.position });
     window.setTimeout(() => {
       dragState = null;
     }, 0);
@@ -411,14 +491,68 @@
     root.style.bottom = "auto";
   }
 
-  function sip() {
+  function sipAndPurr() {
     if (!cat || dragState?.moved) return;
 
     cat.classList.remove("is-napping");
     cat.classList.add("is-sipping");
+    cat.classList.add("is-purring");
+    playPurr();
     window.setTimeout(() => {
       cat?.classList.remove("is-sipping");
     }, 700);
+    window.setTimeout(() => {
+      cat?.classList.remove("is-purring");
+    }, 1200);
+  }
+
+  function playPurr() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    audioContext ||= new AudioContextClass();
+    if (audioContext.state === "suspended") {
+      audioContext.resume();
+    }
+
+    const startedAt = audioContext.currentTime;
+    const duration = 1.1;
+    const output = audioContext.createGain();
+    output.gain.setValueAtTime(0.0001, startedAt);
+    output.gain.exponentialRampToValueAtTime(0.045, startedAt + 0.04);
+    output.gain.setValueAtTime(0.045, startedAt + duration - 0.12);
+    output.gain.exponentialRampToValueAtTime(0.0001, startedAt + duration);
+    output.connect(audioContext.destination);
+
+    createPurrOscillator(output, startedAt, duration, 46);
+    createPurrOscillator(output, startedAt, duration, 61);
+
+    window.setTimeout(() => {
+      output.disconnect();
+    }, Math.ceil((duration + 0.1) * 1000));
+  }
+
+  function createPurrOscillator(destination, startedAt, duration, baseFrequency) {
+    const oscillator = audioContext.createOscillator();
+    const tremolo = audioContext.createOscillator();
+    const tremoloGain = audioContext.createGain();
+    const voiceGain = audioContext.createGain();
+
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(baseFrequency, startedAt);
+    tremolo.frequency.setValueAtTime(24, startedAt);
+    tremoloGain.gain.setValueAtTime(18, startedAt);
+    voiceGain.gain.setValueAtTime(0.5, startedAt);
+
+    tremolo.connect(tremoloGain);
+    tremoloGain.connect(oscillator.frequency);
+    oscillator.connect(voiceGain);
+    voiceGain.connect(destination);
+
+    oscillator.start(startedAt);
+    tremolo.start(startedAt);
+    oscillator.stop(startedAt + duration);
+    tremolo.stop(startedAt + duration);
   }
 
   function scheduleMood() {

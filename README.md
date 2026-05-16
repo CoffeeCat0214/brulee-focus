@@ -16,6 +16,7 @@ CoffeeCat is a tiny Chrome extension that puts a pixel coffee cat buddy on the p
 - Toggle CoffeeCat on or off.
 - Choose small, medium, or large.
 - Drag CoffeeCat to a new spot on the page.
+- Click CoffeeCat to sip and purr.
 - Use **Reset position** to return CoffeeCat to the default corner.
 
 ## Privacy
