@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CoffeeCat</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <header class="brand">
+        <img src="../assets/icons/icon-48.png" alt="" width="48" height="48">
+        <div>
+          <h1>CoffeeCat</h1>
+          <p>tab-side coffee buddy</p>
+        </div>
+      </header>
+
+      <label class="toggle-row">
+        <span>Show CoffeeCat</span>
+        <input id="enabled" type="checkbox" role="switch">
+      </label>
+
+      <section class="control">
+        <label for="size">Size</label>
+        <select id="size">
+          <option value="small">Small</option>
+          <option value="medium">Medium</option>
+          <option value="large">Large</option>
+        </select>
+      </section>
+
+      <button id="reset-position" type="button">Reset position</button>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

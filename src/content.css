@@ -1,0 +1,12 @@
+#coffeecat-root {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  left: auto;
+  top: auto;
+  right: 24px;
+  bottom: 24px;
+  width: 88px;
+  height: 88px;
+  pointer-events: auto;
+}

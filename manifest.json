@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "CoffeeCat",
+  "description": "A tiny coffee cat that chills with you while you browse.",
+  "version": "0.1.0",
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "CoffeeCat",
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "assets/icons/icon-16.png",
+      "32": "assets/icons/icon-32.png",
+      "48": "assets/icons/icon-48.png",
+      "128": "assets/icons/icon-128.png"
+    }
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "css": ["src/content.css"],
+      "js": ["src/content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
