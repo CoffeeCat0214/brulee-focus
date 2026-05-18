@@ -6,7 +6,7 @@
 }
 
 body {
-  width: 280px;
+  width: 320px;
   margin: 0;
   background: #fff8ef;
 }
@@ -92,6 +92,7 @@ input[role="switch"]:checked::before {
 }
 
 select,
+input,
 button {
   min-height: 34px;
   border: 2px solid #4a2b1d;
@@ -106,6 +107,12 @@ select {
   padding: 0 8px;
 }
 
+input {
+  min-width: 0;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+
 button {
   width: 100%;
   cursor: pointer;
@@ -118,7 +125,9 @@ button:active {
   transform: translateY(1px);
 }
 
-.focus-panel {
+.focus-panel,
+.gatekeeper-panel,
+.stats-panel {
   display: grid;
   gap: 10px;
   padding: 12px;
@@ -224,6 +233,73 @@ button:active {
 .timer-actions button {
   width: auto;
   flex: 1;
+}
+
+.domain-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 66px;
+  gap: 8px;
+}
+
+.domain-form button {
+  width: auto;
+}
+
+.blocked-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 24px;
+}
+
+.domain-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 2px solid #4a2b1d;
+  border-radius: 6px;
+  background: #ffe2b8;
+  color: #4a2b1d;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.domain-chip button {
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+  border-width: 0;
+  border-radius: 4px;
+  background: #4a2b1d;
+  color: #fff8ef;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.stat-grid span {
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 2px solid #ead6c1;
+  border-radius: 6px;
+  background: #fff8ef;
+  color: #6f594d;
+  font-size: 11px;
+  text-align: center;
+}
+
+.stat-grid strong {
+  color: #4a2b1d;
+  font-size: 17px;
+  line-height: 1;
 }
 
 button.secondary {

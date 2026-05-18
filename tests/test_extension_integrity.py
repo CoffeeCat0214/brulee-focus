@@ -80,12 +80,56 @@ def test_focus_timer_contract_is_wired_without_external_mug_assets():
     assert "coffee-fill" in content
     assert "glass-mug" in content
 
-    for key in ("coffeeDurationMs", "coffeePausedRemainingMs", "coffeeRunning", "coffeeStartedAt"):
+    for key in (
+        "coffeeDurationMs",
+        "coffeePausedRemainingMs",
+        "coffeeRunning",
+        "coffeeStartedAt",
+        "coffeeSessionId",
+        "completedCoffeeSessionId",
+        "blockedDomains",
+        "breakRunning",
+        "breakStartedAt",
+        "breakDurationMs",
+        "snoozeUsedForSession",
+        "snoozeSessionRunning",
+        "focusStats",
+    ):
         assert key in content
         assert key in popup
 
-    for element_id in ("timer-display", "timer-status", "timer-toggle", "timer-refill"):
+    assert "coffeecat-break-root" in content
+    assert "break-overlay" in content
+    assert "share-card" in content
+    assert "share-download" in content
+    assert "toDataURL" in content
+
+    for element_id in (
+        "timer-display",
+        "timer-status",
+        "timer-toggle",
+        "timer-refill",
+        "domain-form",
+        "blocked-domain",
+        "blocked-list",
+        "stat-sessions",
+        "stat-minutes",
+        "stat-cups",
+    ):
         assert f'id="{element_id}"' in html
+
+
+def test_static_site_documents_v2_launch():
+    index = read_text("site/index.html")
+    styles = read_text("site/styles.css")
+    script = read_text("site/script.js")
+
+    assert "CoffeeCat" in index
+    assert "Gentle Gatekeeper" in index
+    assert "../assets/coffeecat-buddy.png" in index
+    assert "demo-fill" in index
+    assert "requestAnimationFrame" in script
+    assert ".break-card" in styles
 
 
 def test_png_assets_are_valid_rgba():

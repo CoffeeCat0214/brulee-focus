@@ -10,3 +10,11 @@
   height: 88px;
   pointer-events: auto;
 }
+
+#coffeecat-break-root {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  inset: 0;
+  pointer-events: auto;
+}

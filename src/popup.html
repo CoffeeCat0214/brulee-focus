@@ -42,6 +42,29 @@
         </div>
       </section>
 
+      <section class="gatekeeper-panel" aria-label="Gentle Gatekeeper settings">
+        <div>
+          <h2>Gentle Gatekeeper</h2>
+          <p id="gatekeeper-status">add distracting domains</p>
+        </div>
+
+        <form id="domain-form" class="domain-form">
+          <input id="blocked-domain" type="text" placeholder="youtube.com" aria-label="Domain to protect">
+          <button type="submit">Add</button>
+        </form>
+
+        <div id="blocked-list" class="blocked-list" aria-label="Protected domains"></div>
+      </section>
+
+      <section class="stats-panel" aria-label="Local CoffeeCat stats">
+        <h2>Local stats</h2>
+        <div class="stat-grid">
+          <span><strong id="stat-sessions">0</strong> sessions</span>
+          <span><strong id="stat-minutes">0</strong> minutes</span>
+          <span><strong id="stat-cups">0</strong> cups</span>
+        </div>
+      </section>
+
       <section class="control">
         <label for="size">Size</label>
         <select id="size">

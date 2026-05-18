@@ -1,6 +1,8 @@
 (function coffeeCatContent() {
   const ROOT_ID = "coffeecat-root";
+  const BREAK_ROOT_ID = "coffeecat-break-root";
   const FOCUS_DURATION_MS = 25 * 60 * 1000;
+  const BREAK_DURATION_MS = 5 * 60 * 1000;
   const COFFEE_RENDER_INTERVAL_MS = 250;
   const DEFAULT_SETTINGS = {
     enabled: true,
@@ -9,7 +11,20 @@
     coffeeDurationMs: FOCUS_DURATION_MS,
     coffeePausedRemainingMs: FOCUS_DURATION_MS,
     coffeeRunning: false,
-    coffeeStartedAt: null
+    coffeeStartedAt: null,
+    coffeeSessionId: null,
+    completedCoffeeSessionId: null,
+    blockedDomains: [],
+    breakRunning: false,
+    breakStartedAt: null,
+    breakDurationMs: BREAK_DURATION_MS,
+    snoozeUsedForSession: false,
+    snoozeSessionRunning: false,
+    focusStats: {
+      sessionsCompleted: 0,
+      minutesProtected: 0,
+      cupsFinished: 0
+    }
   };
 
   const SIZE_MAP = {
@@ -20,11 +35,14 @@
 
   let settings = { ...DEFAULT_SETTINGS };
   let root = null;
+  let breakRoot = null;
+  let breakShadow = null;
   let shadow = null;
   let cat = null;
   let dragState = null;
   let moodTimer = null;
   let coffeeTimer = null;
+  let breakTimer = null;
   let audioContext = null;
 
   init();
@@ -57,6 +75,9 @@
               ...DEFAULT_SETTINGS,
               ...stored,
               size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size,
+              blockedDomains: normalizeBlockedDomains(stored.blockedDomains),
+              breakDurationMs: getValidBreakDuration(stored.breakDurationMs),
+              focusStats: normalizeFocusStats(stored.focusStats),
               coffeeDurationMs: getValidDuration(stored.coffeeDurationMs),
               coffeePausedRemainingMs: getValidRemaining(
                 stored.coffeePausedRemainingMs,
@@ -91,6 +112,7 @@
 
   function removeExistingRoot() {
     document.getElementById(ROOT_ID)?.remove();
+    document.getElementById(BREAK_ROOT_ID)?.remove();
   }
 
   function watchSettings() {
@@ -103,7 +125,14 @@
             ...settings,
             ...Object.fromEntries(
               Object.entries(changes).map(([key, change]) => [key, change.newValue])
-            )
+            ),
+            blockedDomains: normalizeBlockedDomains(
+              changes.blockedDomains?.newValue ?? settings.blockedDomains
+            ),
+            breakDurationMs: getValidBreakDuration(
+              changes.breakDurationMs?.newValue ?? settings.breakDurationMs
+            ),
+            focusStats: normalizeFocusStats(changes.focusStats?.newValue ?? settings.focusStats)
           };
 
           if (!settings.enabled) {
@@ -113,6 +142,7 @@
 
           if (!root) mount();
           applySettings();
+          renderBreakOverlay();
         } catch {
           handleInvalidatedContext();
         }
@@ -166,13 +196,20 @@
     moodTimer = null;
     window.clearInterval(coffeeTimer);
     coffeeTimer = null;
+    window.clearInterval(breakTimer);
+    breakTimer = null;
     dragState = null;
 
     if (root) {
       root.remove();
     }
+    if (breakRoot) {
+      breakRoot.remove();
+    }
 
     root = null;
+    breakRoot = null;
+    breakShadow = null;
     shadow = null;
     cat = null;
   }
@@ -459,6 +496,7 @@
     }
 
     updateCoffeeMeter();
+    renderBreakOverlay();
   }
 
   function startCoffeeTimer() {
@@ -479,6 +517,398 @@
     fillElement.style.transform = `scaleY(${fill.toFixed(4)})`;
     meter.classList.toggle("is-empty", remaining <= 0);
     meter.classList.toggle("is-paused", !settings.coffeeRunning);
+
+    if (settings.coffeeRunning && remaining <= 0) {
+      completeFocusSession();
+    }
+
+    renderBreakOverlay();
+  }
+
+  function completeFocusSession() {
+    if (!settings.coffeeSessionId || settings.completedCoffeeSessionId === settings.coffeeSessionId) {
+      return;
+    }
+
+    const duration = getValidDuration(settings.coffeeDurationMs);
+    const nextStats = settings.snoozeSessionRunning
+      ? settings.focusStats
+      : {
+          sessionsCompleted: settings.focusStats.sessionsCompleted + 1,
+          minutesProtected: settings.focusStats.minutesProtected + Math.round(duration / 60000),
+          cupsFinished: settings.focusStats.cupsFinished + 1
+        };
+
+    settings = {
+      ...settings,
+      coffeeRunning: false,
+      coffeeStartedAt: null,
+      coffeePausedRemainingMs: 0,
+      completedCoffeeSessionId: settings.coffeeSessionId,
+      breakRunning: true,
+      breakStartedAt: Date.now(),
+      snoozeSessionRunning: false,
+      focusStats: nextStats
+    };
+
+    saveSettings({
+      coffeeRunning: false,
+      coffeeStartedAt: null,
+      coffeePausedRemainingMs: 0,
+      completedCoffeeSessionId: settings.coffeeSessionId,
+      breakRunning: true,
+      breakStartedAt: settings.breakStartedAt,
+      snoozeSessionRunning: false,
+      focusStats: nextStats
+    });
+  }
+
+  function renderBreakOverlay() {
+    const shouldShow = settings.enabled && settings.breakRunning && isCurrentDomainBlocked();
+    if (!shouldShow) {
+      removeBreakOverlay();
+      return;
+    }
+
+    if (!breakRoot) {
+      breakRoot = document.createElement("div");
+      breakRoot.id = BREAK_ROOT_ID;
+      breakShadow = breakRoot.attachShadow({ mode: "closed" });
+      breakShadow.append(buildBreakStyles(), buildBreakOverlay());
+      document.documentElement.appendChild(breakRoot);
+    }
+
+    updateBreakOverlay();
+    window.clearInterval(breakTimer);
+    breakTimer = window.setInterval(updateBreakOverlay, 1000);
+  }
+
+  function removeBreakOverlay() {
+    window.clearInterval(breakTimer);
+    breakTimer = null;
+    if (breakRoot) {
+      breakRoot.remove();
+    }
+    breakRoot = null;
+    breakShadow = null;
+  }
+
+  function buildBreakOverlay() {
+    const overlay = document.createElement("section");
+    overlay.className = "break-overlay";
+    overlay.setAttribute("aria-label", "CoffeeCat break reminder");
+    const buddyImage = getExtensionUrl("assets/coffeecat-buddy.png");
+    overlay.innerHTML = `
+      <div class="break-panel">
+        <img class="break-cat" src="${buddyImage}" alt="">
+        <div class="break-copy">
+          <p class="break-kicker">CoffeeCat gentle gatekeeper</p>
+          <h1>Coffee's gone. Tiny break.</h1>
+          <p class="break-message">Your feed can wait while you refill yourself first.</p>
+          <strong class="break-countdown" id="break-countdown">5:00</strong>
+        </div>
+        <div class="break-actions">
+          <button id="break-start" type="button">Start break</button>
+          <button id="break-refill" type="button">Refill coffee</button>
+          <button id="break-snooze" type="button">Snooze once</button>
+        </div>
+        <div class="share-card" id="share-card">
+          <span>CoffeeCat protected</span>
+          <strong id="share-minutes">0 focus minutes</strong>
+          <small id="share-cups">0 cups finished</small>
+          <button id="share-download" type="button">Download card</button>
+        </div>
+      </div>
+    `;
+
+    overlay.querySelector("#break-start")?.addEventListener("click", startBreakNow);
+    overlay.querySelector("#break-refill")?.addEventListener("click", refillCoffeeFromBreak);
+    overlay.querySelector("#break-snooze")?.addEventListener("click", snoozeBreak);
+    overlay.querySelector("#share-download")?.addEventListener("click", downloadShareCard);
+    return overlay;
+  }
+
+  function buildBreakStyles() {
+    const style = document.createElement("style");
+    style.textContent = `
+      :host {
+        all: initial;
+      }
+
+      .break-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+        background:
+          radial-gradient(circle at center, rgba(255, 248, 239, 0.96), rgba(255, 248, 239, 0.9) 38%, rgba(36, 24, 18, 0.52)),
+          rgba(36, 24, 18, 0.3);
+        color: #241812;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        box-sizing: border-box;
+      }
+
+      .break-panel {
+        width: min(520px, calc(100vw - 56px));
+        display: grid;
+        gap: 18px;
+        justify-items: center;
+        padding: 26px;
+        border: 4px solid #4a2b1d;
+        border-radius: 14px;
+        background: #fffdf8;
+        box-shadow: 0 14px 0 rgba(74, 43, 29, 0.18), 0 24px 54px rgba(36, 24, 18, 0.26);
+        text-align: center;
+      }
+
+      .break-cat {
+        width: 156px;
+        height: 156px;
+        object-fit: contain;
+        image-rendering: pixelated;
+        filter: drop-shadow(0 12px 0 rgba(74, 43, 29, 0.12));
+      }
+
+      .break-copy {
+        display: grid;
+        gap: 8px;
+      }
+
+      .break-kicker,
+      .break-message,
+      .share-card span,
+      .share-card small {
+        margin: 0;
+        color: #6f594d;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      h1 {
+        margin: 0;
+        color: #4a2b1d;
+        font-size: 30px;
+        line-height: 1.05;
+        letter-spacing: 0;
+      }
+
+      .break-countdown {
+        color: #4a2b1d;
+        font-size: 46px;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .break-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        width: 100%;
+      }
+
+      button {
+        min-height: 42px;
+        border: 3px solid #4a2b1d;
+        border-radius: 8px;
+        background: #4a2b1d;
+        color: #fff8ef;
+        cursor: pointer;
+        font: 800 13px/1.1 Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+
+      button:nth-child(2),
+      button:nth-child(3) {
+        background: #fff8ef;
+        color: #4a2b1d;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+
+      .share-card {
+        width: min(300px, 100%);
+        display: grid;
+        gap: 5px;
+        padding: 14px;
+        border: 3px solid #4a2b1d;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #fff8ef, #ffe2b8);
+        box-sizing: border-box;
+      }
+
+      .share-card strong {
+        color: #4a2b1d;
+        font-size: 20px;
+      }
+
+      .share-card button {
+        margin-top: 6px;
+        min-height: 34px;
+        border-width: 2px;
+      }
+
+      @media (max-width: 480px) {
+        .break-panel {
+          padding: 20px;
+        }
+
+        .break-actions {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 25px;
+        }
+      }
+    `;
+    return style;
+  }
+
+  function updateBreakOverlay() {
+    if (!breakShadow || !settings.breakRunning) return;
+
+    const remaining = getBreakRemaining(settings);
+    const countdown = breakShadow.querySelector("#break-countdown");
+    const snoozeButton = breakShadow.querySelector("#break-snooze");
+    const shareMinutes = breakShadow.querySelector("#share-minutes");
+    const shareCups = breakShadow.querySelector("#share-cups");
+
+    if (remaining <= 0) {
+      endBreak();
+      return;
+    }
+
+    if (countdown) countdown.textContent = formatTime(remaining);
+    if (snoozeButton) snoozeButton.disabled = Boolean(settings.snoozeUsedForSession);
+    if (shareMinutes) shareMinutes.textContent = `${settings.focusStats.minutesProtected} focus minutes`;
+    if (shareCups) shareCups.textContent = `${settings.focusStats.cupsFinished} cups finished`;
+  }
+
+  function startBreakNow() {
+    const startedAt = Number.isFinite(settings.breakStartedAt) ? settings.breakStartedAt : Date.now();
+    settings = {
+      ...settings,
+      breakStartedAt: startedAt
+    };
+    saveSettings({ breakStartedAt: startedAt });
+    updateBreakOverlay();
+  }
+
+  function refillCoffeeFromBreak() {
+    const duration = getValidDuration(settings.coffeeDurationMs);
+    settings = {
+      ...settings,
+      coffeeRunning: false,
+      coffeeStartedAt: null,
+      coffeePausedRemainingMs: duration,
+      breakRunning: false,
+      breakStartedAt: null,
+      snoozeUsedForSession: false,
+      snoozeSessionRunning: false
+    };
+    saveSettings({
+      coffeeRunning: false,
+      coffeeStartedAt: null,
+      coffeePausedRemainingMs: duration,
+      breakRunning: false,
+      breakStartedAt: null,
+      snoozeUsedForSession: false,
+      snoozeSessionRunning: false
+    });
+    removeBreakOverlay();
+  }
+
+  function snoozeBreak() {
+    if (settings.snoozeUsedForSession) return;
+    const duration = getValidDuration(settings.coffeeDurationMs);
+    const snoozeRemaining = Math.min(5 * 60 * 1000, duration);
+    const coffeeSessionId = `${Date.now()}-snooze`;
+    settings = {
+      ...settings,
+      coffeeRunning: true,
+      coffeeStartedAt: Date.now() - (duration - snoozeRemaining),
+      coffeePausedRemainingMs: snoozeRemaining,
+      coffeeSessionId,
+      completedCoffeeSessionId: null,
+      breakRunning: false,
+      breakStartedAt: null,
+      snoozeUsedForSession: true,
+      snoozeSessionRunning: true
+    };
+    saveSettings({
+      coffeeRunning: true,
+      coffeeStartedAt: settings.coffeeStartedAt,
+      coffeePausedRemainingMs: snoozeRemaining,
+      coffeeSessionId,
+      completedCoffeeSessionId: null,
+      breakRunning: false,
+      breakStartedAt: null,
+      snoozeUsedForSession: true,
+      snoozeSessionRunning: true
+    });
+    removeBreakOverlay();
+  }
+
+  function endBreak() {
+    settings = {
+      ...settings,
+      breakRunning: false,
+      breakStartedAt: null,
+      snoozeUsedForSession: false,
+      snoozeSessionRunning: false
+    };
+    saveSettings({
+      breakRunning: false,
+      breakStartedAt: null,
+      snoozeUsedForSession: false,
+      snoozeSessionRunning: false
+    });
+    removeBreakOverlay();
+  }
+
+  function downloadShareCard() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 900;
+    canvas.height = 520;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    context.fillStyle = "#fff8ef";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#ffe2b8";
+    context.fillRect(38, 38, canvas.width - 76, canvas.height - 76);
+    context.strokeStyle = "#4a2b1d";
+    context.lineWidth = 12;
+    context.strokeRect(38, 38, canvas.width - 76, canvas.height - 76);
+    context.fillStyle = "#4a2b1d";
+    context.font = "800 58px system-ui, sans-serif";
+    context.fillText("CoffeeCat protected", 72, 126);
+    context.font = "900 82px system-ui, sans-serif";
+    context.fillText(`${settings.focusStats.minutesProtected} minutes`, 72, 226);
+    context.font = "600 34px system-ui, sans-serif";
+    context.fillStyle = "#6f594d";
+    context.fillText(`${settings.focusStats.cupsFinished} cups finished locally`, 74, 286);
+    context.fillText("Coffee's gone. Tiny break.", 74, 340);
+
+    const image = new Image();
+    image.onload = () => {
+      context.imageSmoothingEnabled = false;
+      context.drawImage(image, 610, 145, 190, 190);
+      triggerShareDownload(canvas);
+    };
+    image.onerror = () => triggerShareDownload(canvas);
+    image.src = getExtensionUrl("assets/coffeecat-buddy.png");
+  }
+
+  function triggerShareDownload(canvas) {
+    const link = document.createElement("a");
+    link.download = "coffeecat-focus-card.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
   }
 
   function startDrag(event) {
@@ -621,12 +1051,68 @@
     return Math.max(0, duration - (Date.now() - source.coffeeStartedAt));
   }
 
+  function getBreakRemaining(source) {
+    const duration = getValidBreakDuration(source.breakDurationMs);
+    if (!source.breakRunning || !Number.isFinite(source.breakStartedAt)) {
+      return duration;
+    }
+
+    return Math.max(0, duration - (Date.now() - source.breakStartedAt));
+  }
+
+  function isCurrentDomainBlocked() {
+    const hostname = window.location.hostname.toLowerCase();
+    return normalizeBlockedDomains(settings.blockedDomains).some((domain) => {
+      return hostname === domain || hostname.endsWith(`.${domain}`);
+    });
+  }
+
+  function normalizeBlockedDomains(value) {
+    if (!Array.isArray(value)) return [];
+    return [...new Set(value.map(normalizeDomain).filter(Boolean))];
+  }
+
+  function normalizeDomain(value) {
+    if (typeof value !== "string") return "";
+    return value
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0]
+      .replace(/[^a-z0-9.-]/g, "");
+  }
+
+  function normalizeFocusStats(value) {
+    const source = value && typeof value === "object" ? value : {};
+    return {
+      sessionsCompleted: getNonNegativeInteger(source.sessionsCompleted),
+      minutesProtected: getNonNegativeInteger(source.minutesProtected),
+      cupsFinished: getNonNegativeInteger(source.cupsFinished)
+    };
+  }
+
+  function getNonNegativeInteger(value) {
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  }
+
   function getValidDuration(value) {
     return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.coffeeDurationMs;
+  }
+
+  function getValidBreakDuration(value) {
+    return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.breakDurationMs;
   }
 
   function getValidRemaining(value, durationValue) {
     const duration = getValidDuration(durationValue);
     return Number.isFinite(value) ? Math.max(0, Math.min(value, duration)) : duration;
+  }
+
+  function formatTime(milliseconds) {
+    const totalSeconds = Math.ceil(Math.max(0, milliseconds) / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
   }
 })();
