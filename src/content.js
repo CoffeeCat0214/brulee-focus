@@ -46,23 +46,29 @@
     return new Promise((resolve) => {
       try {
         chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
-          if (chrome.runtime.lastError) {
-            resolve(DEFAULT_SETTINGS);
-            return;
-          }
+          try {
+            if (getRuntimeLastError()) {
+              resolve(DEFAULT_SETTINGS);
+              return;
+            }
 
-          resolve({
-            ...DEFAULT_SETTINGS,
-            ...stored,
-            size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size,
-            coffeeDurationMs: getValidDuration(stored.coffeeDurationMs),
-            coffeePausedRemainingMs: getValidRemaining(
-              stored.coffeePausedRemainingMs,
-              stored.coffeeDurationMs
-            )
-          });
+            resolve({
+              ...DEFAULT_SETTINGS,
+              ...stored,
+              size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size,
+              coffeeDurationMs: getValidDuration(stored.coffeeDurationMs),
+              coffeePausedRemainingMs: getValidRemaining(
+                stored.coffeePausedRemainingMs,
+                stored.coffeeDurationMs
+              )
+            });
+          } catch {
+            handleInvalidatedContext();
+            resolve(DEFAULT_SETTINGS);
+          }
         });
       } catch {
+        handleInvalidatedContext();
         resolve(DEFAULT_SETTINGS);
       }
     });
@@ -89,25 +95,29 @@
   function watchSettings() {
     try {
       chrome.storage.onChanged.addListener((changes, areaName) => {
-        if (areaName !== "sync") return;
+        try {
+          if (areaName !== "sync") return;
 
-        settings = {
-          ...settings,
-          ...Object.fromEntries(
-            Object.entries(changes).map(([key, change]) => [key, change.newValue])
-          )
-        };
+          settings = {
+            ...settings,
+            ...Object.fromEntries(
+              Object.entries(changes).map(([key, change]) => [key, change.newValue])
+            )
+          };
 
-        if (!settings.enabled) {
-          unmount();
-          return;
+          if (!settings.enabled) {
+            unmount();
+            return;
+          }
+
+          if (!root) mount();
+          applySettings();
+        } catch {
+          handleInvalidatedContext();
         }
-
-        if (!root) mount();
-        applySettings();
       });
     } catch {
-      removeExistingRoot();
+      handleInvalidatedContext();
     }
   }
 
@@ -123,6 +133,7 @@
     try {
       return chrome.runtime.getURL(path);
     } catch {
+      handleInvalidatedContext();
       return "";
     }
   }
@@ -131,8 +142,22 @@
     try {
       chrome.storage.sync.set(nextSettings);
     } catch {
-      removeExistingRoot();
+      handleInvalidatedContext();
     }
+  }
+
+  function getRuntimeLastError() {
+    try {
+      return chrome.runtime.lastError;
+    } catch {
+      handleInvalidatedContext();
+      return null;
+    }
+  }
+
+  function handleInvalidatedContext() {
+    unmount();
+    removeExistingRoot();
   }
 
   function unmount() {
@@ -249,11 +274,11 @@
 
       .coffee-meter {
         position: absolute;
-        right: -12%;
-        bottom: 6%;
+        right: -16%;
+        bottom: 3%;
         z-index: 3;
-        width: 34%;
-        height: 34%;
+        width: 43%;
+        height: 43%;
         pointer-events: none;
         image-rendering: pixelated;
       }
@@ -268,9 +293,11 @@
         border-top-width: 4px;
         border-radius: 5px 5px 8px 8px;
         background:
+          linear-gradient(#fffdf8, #fff3e4),
           linear-gradient(90deg, rgba(255, 255, 255, 0.78) 0 13%, transparent 13%),
           linear-gradient(90deg, transparent 0 73%, rgba(170, 205, 212, 0.42) 73% 86%, transparent 86%),
           rgba(255, 253, 248, 0.68);
+        background-blend-mode: normal, screen, normal, normal;
         box-sizing: border-box;
         filter:
           drop-shadow(0 3px 0 rgba(74, 43, 29, 0.12))
@@ -304,19 +331,34 @@
 
       .coffee-fill {
         position: absolute;
-        left: 9%;
-        right: 9%;
-        bottom: 8%;
-        height: 100%;
-        max-height: 78%;
-        border-radius: 2px 2px 6px 6px;
+        left: 7%;
+        right: 7%;
+        bottom: 7%;
+        height: 78%;
+        border-radius: 3px 3px 6px 6px;
         background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.26) 0 16%, transparent 16%),
           linear-gradient(rgba(244, 174, 94, 0.55), rgba(244, 174, 94, 0) 20%),
           linear-gradient(#8f481d, #32170d);
         box-shadow:
           inset 4px 0 0 rgba(255, 255, 255, 0.22),
-          inset -2px 0 0 rgba(30, 14, 8, 0.24);
-        transition: height 360ms steps(5, end), opacity 180ms ease;
+          inset -2px 0 0 rgba(30, 14, 8, 0.24),
+          0 -2px 0 rgba(244, 174, 94, 0.7);
+        transform: scaleY(1);
+        transform-origin: center bottom;
+        transition: transform 360ms steps(24, end), opacity 180ms ease;
+      }
+
+      .coffee-fill::before {
+        content: "";
+        position: absolute;
+        left: 8%;
+        right: 8%;
+        top: 0;
+        height: 3px;
+        border-radius: 999px;
+        background: rgba(255, 198, 124, 0.78);
+        box-shadow: 0 1px 0 rgba(45, 21, 12, 0.32);
       }
 
       .coffee-steam {
@@ -339,9 +381,12 @@
       }
 
       .coffee-meter.is-paused .coffee-steam,
-      .coffee-meter.is-empty .coffee-steam,
-      .coffee-meter.is-empty .coffee-fill {
+      .coffee-meter.is-empty .coffee-steam {
         opacity: 0;
+      }
+
+      .coffee-meter.is-empty .coffee-fill {
+        opacity: 0.35;
       }
 
       .coffee-meter.is-paused .glass-mug {
@@ -430,7 +475,7 @@
     const remaining = getCoffeeRemaining(settings);
     const fill = Math.max(0, Math.min(1, remaining / duration));
 
-    fillElement.style.height = `${Math.round(fill * 100)}%`;
+    fillElement.style.transform = `scaleY(${fill.toFixed(3)})`;
     meter.classList.toggle("is-empty", remaining <= 0);
     meter.classList.toggle("is-paused", !settings.coffeeRunning);
   }

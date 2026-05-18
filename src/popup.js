@@ -59,7 +59,8 @@ function renderCoffeeTimer() {
   const fill = Math.max(0, Math.min(1, remaining / duration));
 
   timerDisplay.textContent = formatTime(remaining);
-  progressFill.style.width = `${Math.round(fill * 100)}%`;
+  progressFill.style.transform = `scaleY(${fill.toFixed(3)})`;
+  progressFill.style.opacity = remaining <= 0 ? "0.35" : "1";
   timerToggle.textContent = settings.coffeeRunning && remaining > 0 ? "Pause" : "Start";
 
   if (remaining <= 0) {
