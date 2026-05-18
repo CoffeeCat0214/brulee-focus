@@ -599,12 +599,16 @@
     overlay.setAttribute("aria-label", "CoffeeCat break reminder");
     const buddyImage = getExtensionUrl("assets/coffeecat-buddy.png");
     overlay.innerHTML = `
+      <div class="coffee-flood" aria-hidden="true">
+        <span class="coffee-wave wave-a"></span>
+        <span class="coffee-wave wave-b"></span>
+      </div>
       <div class="break-panel">
         <img class="break-cat" src="${buddyImage}" alt="">
         <div class="break-copy">
-          <p class="break-kicker">CoffeeCat gentle gatekeeper</p>
+          <p class="break-kicker">CoffeeCat coffee flood</p>
           <h1>Coffee's gone. Tiny break.</h1>
-          <p class="break-message">Your feed can wait while you refill yourself first.</p>
+          <p class="break-message">The coffee is taking over this page while you refill yourself first.</p>
           <strong class="break-countdown" id="break-countdown">5:00</strong>
         </div>
         <div class="break-actions">
@@ -612,11 +616,10 @@
           <button id="break-refill" type="button">Refill coffee</button>
           <button id="break-snooze" type="button">Snooze once</button>
         </div>
-        <div class="share-card" id="share-card">
+        <div class="flood-stats" id="flood-stats">
           <span>CoffeeCat protected</span>
           <strong id="share-minutes">0 focus minutes</strong>
           <small id="share-cups">0 cups finished</small>
-          <button id="share-download" type="button">Download card</button>
         </div>
       </div>
     `;
@@ -624,7 +627,6 @@
     overlay.querySelector("#break-start")?.addEventListener("click", startBreakNow);
     overlay.querySelector("#break-refill")?.addEventListener("click", refillCoffeeFromBreak);
     overlay.querySelector("#break-snooze")?.addEventListener("click", snoozeBreak);
-    overlay.querySelector("#share-download")?.addEventListener("click", downloadShareCard);
     return overlay;
   }
 
@@ -642,12 +644,58 @@
         display: grid;
         place-items: center;
         padding: 28px;
-        background:
-          radial-gradient(circle at center, rgba(255, 248, 239, 0.96), rgba(255, 248, 239, 0.9) 38%, rgba(36, 24, 18, 0.52)),
-          rgba(36, 24, 18, 0.3);
+        overflow: hidden;
+        background: rgba(36, 24, 18, 0.18);
         color: #241812;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         box-sizing: border-box;
+      }
+
+      .coffee-flood {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        overflow: hidden;
+        background:
+          linear-gradient(rgba(123, 62, 25, 0.22), rgba(55, 24, 12, 0.72)),
+          rgba(79, 36, 16, 0.72);
+        transform: scaleY(0);
+        transform-origin: center bottom;
+        animation: coffeeFloodRise 1400ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        backdrop-filter: sepia(0.38) saturate(0.95);
+      }
+
+      .coffee-flood::before {
+        content: "";
+        position: absolute;
+        left: -8%;
+        right: -8%;
+        top: -18px;
+        height: 42px;
+        border-radius: 50%;
+        background:
+          radial-gradient(ellipse at 20% 50%, rgba(255, 190, 116, 0.38), transparent 34%),
+          radial-gradient(ellipse at 70% 48%, rgba(255, 226, 184, 0.24), transparent 30%),
+          rgba(94, 44, 18, 0.92);
+        box-shadow: 0 8px 24px rgba(43, 19, 10, 0.28);
+      }
+
+      .coffee-wave {
+        position: absolute;
+        left: -20%;
+        right: -20%;
+        top: -20px;
+        height: 38px;
+        border-radius: 50%;
+        background: rgba(255, 190, 116, 0.2);
+        animation: coffeeWave 2200ms ease-in-out infinite alternate;
+      }
+
+      .wave-b {
+        top: -8px;
+        opacity: 0.55;
+        animation-delay: 500ms;
+        animation-duration: 2800ms;
       }
 
       .break-panel {
@@ -658,9 +706,14 @@
         padding: 26px;
         border: 4px solid #4a2b1d;
         border-radius: 14px;
-        background: #fffdf8;
-        box-shadow: 0 14px 0 rgba(74, 43, 29, 0.18), 0 24px 54px rgba(36, 24, 18, 0.26);
+        background: rgba(255, 253, 248, 0.94);
+        box-shadow: 0 14px 0 rgba(74, 43, 29, 0.18), 0 24px 54px rgba(36, 24, 18, 0.32);
         text-align: center;
+        z-index: 2;
+        opacity: 0;
+        transform: translateY(18px);
+        animation: breakPanelAppear 360ms ease forwards;
+        animation-delay: 1050ms;
       }
 
       .break-cat {
@@ -678,8 +731,8 @@
 
       .break-kicker,
       .break-message,
-      .share-card span,
-      .share-card small {
+      .flood-stats span,
+      .flood-stats small {
         margin: 0;
         color: #6f594d;
         font-size: 14px;
@@ -729,7 +782,7 @@
         opacity: 0.5;
       }
 
-      .share-card {
+      .flood-stats {
         width: min(300px, 100%);
         display: grid;
         gap: 5px;
@@ -740,15 +793,26 @@
         box-sizing: border-box;
       }
 
-      .share-card strong {
+      .flood-stats strong {
         color: #4a2b1d;
         font-size: 20px;
       }
 
-      .share-card button {
-        margin-top: 6px;
-        min-height: 34px;
-        border-width: 2px;
+      @keyframes coffeeFloodRise {
+        0% { transform: scaleY(0); }
+        100% { transform: scaleY(1); }
+      }
+
+      @keyframes coffeeWave {
+        0% { transform: translateX(-24px) scaleX(1.04); }
+        100% { transform: translateX(24px) scaleX(0.96); }
+      }
+
+      @keyframes breakPanelAppear {
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
       }
 
       @media (max-width: 480px) {
@@ -868,47 +932,6 @@
       snoozeSessionRunning: false
     });
     removeBreakOverlay();
-  }
-
-  function downloadShareCard() {
-    const canvas = document.createElement("canvas");
-    canvas.width = 900;
-    canvas.height = 520;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-
-    context.fillStyle = "#fff8ef";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "#ffe2b8";
-    context.fillRect(38, 38, canvas.width - 76, canvas.height - 76);
-    context.strokeStyle = "#4a2b1d";
-    context.lineWidth = 12;
-    context.strokeRect(38, 38, canvas.width - 76, canvas.height - 76);
-    context.fillStyle = "#4a2b1d";
-    context.font = "800 58px system-ui, sans-serif";
-    context.fillText("CoffeeCat protected", 72, 126);
-    context.font = "900 82px system-ui, sans-serif";
-    context.fillText(`${settings.focusStats.minutesProtected} minutes`, 72, 226);
-    context.font = "600 34px system-ui, sans-serif";
-    context.fillStyle = "#6f594d";
-    context.fillText(`${settings.focusStats.cupsFinished} cups finished locally`, 74, 286);
-    context.fillText("Coffee's gone. Tiny break.", 74, 340);
-
-    const image = new Image();
-    image.onload = () => {
-      context.imageSmoothingEnabled = false;
-      context.drawImage(image, 610, 145, 190, 190);
-      triggerShareDownload(canvas);
-    };
-    image.onerror = () => triggerShareDownload(canvas);
-    image.src = getExtensionUrl("assets/coffeecat-buddy.png");
-  }
-
-  function triggerShareDownload(canvas) {
-    const link = document.createElement("a");
-    link.download = "coffeecat-focus-card.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
   }
 
   function startDrag(event) {

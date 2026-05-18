@@ -23,7 +23,7 @@ CoffeeCat is a tiny Chrome extension that puts a pixel coffee cat buddy on the p
 
 ## Website
 
-Open `site/index.html` in a browser to preview the CoffeeCat V2 launch page. It uses the same CoffeeCat assets and demonstrates the draining cup and gentle break-card concept without calling Chrome extension APIs.
+Open `site/index.html` in a browser to preview the CoffeeCat V2 launch page. It uses the same CoffeeCat assets and demonstrates the draining cup and coffee-flood break concept without calling Chrome extension APIs.
 
 ## Privacy
 

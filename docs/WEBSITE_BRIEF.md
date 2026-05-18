@@ -47,8 +47,8 @@ Avoid claiming:
 - Gentle Gatekeeper domain list in the popup.
 - Floating cup next to CoffeeCat mirrors the timer state.
 - Coffee liquid drains as time runs out.
-- On user-managed protected domains, CoffeeCat can show a break overlay when Focus Coffee ends.
-- The break overlay includes a five-minute countdown, refill action, and one snooze.
+- On user-managed protected domains, CoffeeCat can show a coffee-flood break overlay when Focus Coffee ends.
+- The break overlay fills the screen upward with semi-transparent coffee, then shows a five-minute countdown, refill action, and one snooze.
 - Local stats track sessions completed, minutes protected, and cups finished.
 - Coffee fill updates every `250ms` for smoother perceived motion.
 - Coffee level uses a bottom-anchored CSS `scaleY(...)` transform with 4-decimal precision.
@@ -64,7 +64,7 @@ Recommended visual assets:
 
 - Use `assets/coffeecat-buddy.png` as a primary character image.
 - Show a real browser-page mockup with CoffeeCat sitting near the bottom-right.
-- Include a close-up or animated demo of the Focus Coffee cup draining.
+- Include a close-up or animated demo of the Focus Coffee cup draining and the page filling with coffee.
 - Use the extension icons from `assets/icons/` for favicon/app icon treatments.
 
 Recommended style:
@@ -93,6 +93,7 @@ Hero direction:
    - Explain the Pomodoro-style timer.
    - Show the draining coffee level.
    - Mention the cup updates smoothly and the timer remains visible.
+   - Show the coffee flood takeover as the end-of-session moment.
 
 3. Browser Buddy Features
    - Drag CoffeeCat.
@@ -124,7 +125,7 @@ Hero direction:
 Recommended interactive demo:
 
 - Build a small mock browser canvas or section where CoffeeCat appears with the coffee cup.
-- Add a demo timer state control or automatic loop that drains/refills the cup.
+- Add a demo timer state control or automatic loop that drains/refills the cup and previews the coffee flood.
 - The demo should use the same visual principle as the extension:
   - cup outline remains fixed
   - liquid is anchored at the bottom
@@ -175,19 +176,21 @@ CoffeeCat is currently loaded as an unpacked Chrome extension. Open Chrome exten
 - Keep the website separate from the extension source unless intentionally adding a site app.
 - If building in this repo, put website files under a clear directory such as `site/`.
 - Reuse the existing PNG assets instead of recreating the character.
-- The site can simulate the coffee fill with CSS:
+- The site can simulate the coffee fill and flood with CSS:
   - a fixed cup container
   - a bottom-anchored fill element
   - `transform-origin: center bottom`
   - `transform: scaleY(progress)`
   - a subtle 1px surface highlight
+  - a full-viewport coffee layer using `transform-origin: bottom`
+  - a semi-transparent brown fill so the page remains visible underneath
 - For a live demo, update visual progress with `requestAnimationFrame` or a short interval; do not involve the Chrome extension storage APIs.
 
 ## Acceptance Criteria For A First Website Version
 
 - The first screen clearly shows CoffeeCat, the cup, and the product name.
 - The site explains what the extension does in under 10 seconds.
-- The Focus Coffee draining behavior is visible or demonstrated.
+- The Focus Coffee draining behavior and coffee-flood break moment are visible or demonstrated.
 - Privacy claims match the current extension implementation.
 - Local install instructions are accurate.
 - The design uses actual CoffeeCat assets.

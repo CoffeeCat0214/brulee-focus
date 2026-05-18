@@ -100,9 +100,8 @@ def test_focus_timer_contract_is_wired_without_external_mug_assets():
 
     assert "coffeecat-break-root" in content
     assert "break-overlay" in content
-    assert "share-card" in content
-    assert "share-download" in content
-    assert "toDataURL" in content
+    assert "coffee-flood" in content
+    assert "flood-stats" in content
 
     for element_id in (
         "timer-display",
@@ -129,7 +128,8 @@ def test_static_site_documents_v2_launch():
     assert "../assets/coffeecat-buddy.png" in index
     assert "demo-fill" in index
     assert "requestAnimationFrame" in script
-    assert ".break-card" in styles
+    assert ".flood-preview" in styles
+    assert "siteCoffeeFlood" in styles
 
 
 def test_png_assets_are_valid_rgba():

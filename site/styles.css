@@ -235,32 +235,83 @@ a.secondary {
   gap: 12px;
 }
 
-.break-card {
+.flood-preview {
   display: grid;
-  gap: 7px;
+  gap: 10px;
   justify-items: center;
   padding: 18px;
   border: 3px solid #4a2b1d;
   border-radius: 10px;
-  background: linear-gradient(135deg, #fff8ef, #ffe2b8);
+  background: #fff8ef;
   text-align: center;
 }
 
-.break-card img {
-  width: 118px;
-  height: 118px;
-  object-fit: contain;
+.flood-page {
+  position: relative;
+  width: 100%;
+  min-height: 190px;
+  overflow: hidden;
+  border: 3px solid #4a2b1d;
+  border-radius: 8px;
+  background: #163c36;
+}
+
+.flood-page span {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 70%;
+  height: 12px;
+  margin: 18px auto 0;
+  border-radius: 999px;
+  background: rgba(255, 248, 239, 0.4);
+}
+
+.flood-page img {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 3;
+  width: 96px;
+  transform: translateX(-50%);
   image-rendering: pixelated;
 }
 
-.break-card strong {
+.flood-coffee {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background:
+    linear-gradient(rgba(123, 62, 25, 0.2), rgba(55, 24, 12, 0.72)),
+    rgba(79, 36, 16, 0.7);
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  animation: siteCoffeeFlood 4s ease-in-out infinite;
+}
+
+.flood-coffee::before {
+  content: "";
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: -14px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 190, 116, 0.28);
+}
+
+.flood-preview strong {
   color: #4a2b1d;
   font-size: 22px;
 }
 
-.break-card span,
-.break-card small {
+.flood-preview small {
   color: #6f594d;
+}
+
+@keyframes siteCoffeeFlood {
+  0%, 20% { transform: scaleY(0.08); }
+  70%, 100% { transform: scaleY(1); }
 }
 
 .features {
