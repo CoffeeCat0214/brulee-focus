@@ -1,6 +1,7 @@
 (function coffeeCatContent() {
   const ROOT_ID = "coffeecat-root";
   const FOCUS_DURATION_MS = 25 * 60 * 1000;
+  const COFFEE_RENDER_INTERVAL_MS = 250;
   const DEFAULT_SETTINGS = {
     enabled: true,
     size: "medium",
@@ -338,15 +339,15 @@
         border-radius: 3px 3px 6px 6px;
         background:
           linear-gradient(90deg, rgba(255, 255, 255, 0.26) 0 16%, transparent 16%),
-          linear-gradient(rgba(244, 174, 94, 0.55), rgba(244, 174, 94, 0) 20%),
-          linear-gradient(#8f481d, #32170d);
+          linear-gradient(rgba(184, 101, 42, 0.34), rgba(184, 101, 42, 0) 12%),
+          linear-gradient(#6f3518, #32170d);
         box-shadow:
           inset 4px 0 0 rgba(255, 255, 255, 0.22),
           inset -2px 0 0 rgba(30, 14, 8, 0.24),
-          0 -2px 0 rgba(244, 174, 94, 0.7);
+          0 -1px 0 rgba(255, 190, 116, 0.42);
         transform: scaleY(1);
         transform-origin: center bottom;
-        transition: transform 360ms steps(24, end), opacity 180ms ease;
+        transition: transform 220ms linear, opacity 180ms ease;
       }
 
       .coffee-fill::before {
@@ -355,10 +356,10 @@
         left: 8%;
         right: 8%;
         top: 0;
-        height: 3px;
+        height: 1px;
         border-radius: 999px;
-        background: rgba(255, 198, 124, 0.78);
-        box-shadow: 0 1px 0 rgba(45, 21, 12, 0.32);
+        background: rgba(255, 206, 143, 0.5);
+        box-shadow: 0 1px 0 rgba(45, 21, 12, 0.45);
       }
 
       .coffee-steam {
@@ -463,7 +464,7 @@
   function startCoffeeTimer() {
     window.clearInterval(coffeeTimer);
     updateCoffeeMeter();
-    coffeeTimer = window.setInterval(updateCoffeeMeter, 1000);
+    coffeeTimer = window.setInterval(updateCoffeeMeter, COFFEE_RENDER_INTERVAL_MS);
   }
 
   function updateCoffeeMeter() {
@@ -475,7 +476,7 @@
     const remaining = getCoffeeRemaining(settings);
     const fill = Math.max(0, Math.min(1, remaining / duration));
 
-    fillElement.style.transform = `scaleY(${fill.toFixed(3)})`;
+    fillElement.style.transform = `scaleY(${fill.toFixed(4)})`;
     meter.classList.toggle("is-empty", remaining <= 0);
     meter.classList.toggle("is-paused", !settings.coffeeRunning);
   }

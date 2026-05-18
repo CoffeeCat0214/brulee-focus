@@ -7,6 +7,7 @@ const DEFAULT_SETTINGS = {
   coffeeRunning: false,
   coffeeStartedAt: null
 };
+const COFFEE_RENDER_INTERVAL_MS = 250;
 
 const enabledInput = document.getElementById("enabled");
 const sizeSelect = document.getElementById("size");
@@ -50,7 +51,7 @@ function renderSettings() {
 function startRenderTimer() {
   window.clearInterval(renderTimer);
   renderCoffeeTimer();
-  renderTimer = window.setInterval(renderCoffeeTimer, 1000);
+  renderTimer = window.setInterval(renderCoffeeTimer, COFFEE_RENDER_INTERVAL_MS);
 }
 
 function renderCoffeeTimer() {
@@ -59,7 +60,7 @@ function renderCoffeeTimer() {
   const fill = Math.max(0, Math.min(1, remaining / duration));
 
   timerDisplay.textContent = formatTime(remaining);
-  progressFill.style.transform = `scaleY(${fill.toFixed(3)})`;
+  progressFill.style.transform = `scaleY(${fill.toFixed(4)})`;
   progressFill.style.opacity = remaining <= 0 ? "0.35" : "1";
   timerToggle.textContent = settings.coffeeRunning && remaining > 0 ? "Pause" : "Start";
 

@@ -199,14 +199,14 @@ button:active {
   border-radius: 4px 4px 8px 8px;
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.24) 0 16%, transparent 16%),
-    linear-gradient(rgba(244, 174, 94, 0.58), rgba(244, 174, 94, 0) 20%),
-    linear-gradient(#8f481d, #32170d);
+    linear-gradient(rgba(184, 101, 42, 0.34), rgba(184, 101, 42, 0) 12%),
+    linear-gradient(#6f3518, #32170d);
   box-shadow:
     inset 5px 0 0 rgba(255, 255, 255, 0.2),
     inset -2px 0 0 rgba(30, 14, 8, 0.24),
-    0 -2px 0 rgba(244, 174, 94, 0.72);
+    0 -1px 0 rgba(255, 190, 116, 0.42);
   transform-origin: center bottom;
-  transition: transform 300ms steps(24, end), opacity 180ms ease;
+  transition: transform 220ms linear, opacity 180ms ease;
 }
 
 #coffee-progress-fill::before {
@@ -215,10 +215,10 @@ button:active {
   left: 9%;
   right: 9%;
   top: 0;
-  height: 3px;
+  height: 1px;
   border-radius: 999px;
-  background: rgba(255, 198, 124, 0.78);
-  box-shadow: 0 1px 0 rgba(45, 21, 12, 0.32);
+  background: rgba(255, 206, 143, 0.5);
+  box-shadow: 0 1px 0 rgba(45, 21, 12, 0.45);
 }
 
 .timer-actions button {

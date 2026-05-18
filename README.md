@@ -17,6 +17,7 @@ CoffeeCat is a tiny Chrome extension that puts a pixel coffee cat buddy on the p
 - Choose small, medium, or large.
 - Drag CoffeeCat to a new spot on the page.
 - Click CoffeeCat to sip and purr.
+- Use **Focus Coffee** as a Pomodoro-style timer; the cup drains as time runs out.
 - Use **Reset position** to return CoffeeCat to the default corner.
 
 ## Privacy
@@ -26,3 +27,5 @@ CoffeeCat has no backend, no analytics, and no account system. It stores only it
 ## Notes
 
 Chrome does not allow extensions to freely draw inside the browser's native tab strip, so CoffeeCat appears as a friendly on-page buddy instead.
+
+The Focus Coffee cup updates its liquid level several times per second for a smoother drain. The coffee surface is intentionally subtle so the changing level remains easier to read than the crema highlight.
