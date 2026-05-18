@@ -157,14 +157,28 @@
     cat.title = "CoffeeCat";
     cat.setAttribute("aria-label", "CoffeeCat browser buddy");
     const idleImage = getExtensionUrl("assets/coffeecat-idle.png");
+    const mugFrames = [
+      getExtensionUrl("assets/mugs/mug-1-full.png"),
+      getExtensionUrl("assets/mugs/mug-2-80.png"),
+      getExtensionUrl("assets/mugs/mug-3-60.png"),
+      getExtensionUrl("assets/mugs/mug-4-40.png"),
+      getExtensionUrl("assets/mugs/mug-5-20.png"),
+      getExtensionUrl("assets/mugs/mug-6-empty.png")
+    ];
     cat.innerHTML = `
       <img class="cat-art" src="${idleImage}" alt="">
       <span class="coffee-meter" aria-hidden="true">
-        <span class="coffee-meter-steam steam-a"></span>
-        <span class="coffee-meter-steam steam-b"></span>
-        <span class="coffee-meter-cup">
-          <span class="coffee-meter-liquid"></span>
-        </span>
+        <img
+          class="coffee-meter-frame"
+          src="${mugFrames[0]}"
+          data-frame-0="${mugFrames[0]}"
+          data-frame-1="${mugFrames[1]}"
+          data-frame-2="${mugFrames[2]}"
+          data-frame-3="${mugFrames[3]}"
+          data-frame-4="${mugFrames[4]}"
+          data-frame-5="${mugFrames[5]}"
+          alt=""
+        >
       </span>
       <span class="purr-bubble">prr</span>
     `;
@@ -248,110 +262,28 @@
 
       .coffee-meter {
         position: absolute;
-        right: -10%;
-        bottom: -3%;
+        right: -21%;
+        bottom: -10%;
         z-index: 3;
         display: block;
-        width: 38%;
-        height: 42%;
+        width: 52%;
+        height: 52%;
         pointer-events: none;
         image-rendering: pixelated;
       }
 
-      .coffee-meter-cup {
-        position: absolute;
-        left: 8%;
-        right: 24%;
-        bottom: 6%;
-        height: 58%;
-        border: 3px solid var(--fur-dark);
-        border-top-width: 4px;
-        border-radius: 5px 5px 8px 8px;
-        background:
-          linear-gradient(90deg, rgba(255, 255, 255, 0.72) 0 13%, transparent 13%),
-          linear-gradient(90deg, transparent 0 74%, rgba(180, 205, 210, 0.35) 74% 86%, transparent 86%),
-          rgba(255, 253, 248, 0.72);
-        box-sizing: border-box;
-        filter:
-          drop-shadow(0 4px 0 rgba(74, 43, 29, 0.1))
-          drop-shadow(0 7px 10px rgba(74, 43, 29, 0.18));
-      }
-
-      .coffee-meter-cup::after {
-        content: "";
-        position: absolute;
-        right: -44%;
-        top: 25%;
-        width: 42%;
-        height: 45%;
-        border: 3px solid var(--fur-dark);
-        border-left: 0;
-        border-radius: 0 8px 8px 0;
-        box-sizing: border-box;
-      }
-
-      .coffee-meter-cup::before {
-        content: "";
-        position: absolute;
-        left: 9%;
-        right: 9%;
-        top: 8%;
-        height: 7%;
-        border-top: 2px solid rgba(74, 43, 29, 0.32);
-        border-radius: 50%;
-        z-index: 2;
-      }
-
-      .coffee-meter-liquid {
-        position: absolute;
-        left: 9%;
-        right: 9%;
-        bottom: 8%;
+      .coffee-meter-frame {
+        display: block;
+        width: 100%;
         height: 100%;
-        max-height: 78%;
-        border-radius: 2px 2px 6px 6px;
-        background:
-          linear-gradient(rgba(255, 204, 130, 0.55), rgba(255, 204, 130, 0) 18%),
-          linear-gradient(#8c451d, #3a2117);
-        box-shadow:
-          inset 4px 0 0 rgba(255, 255, 255, 0.24),
-          inset -2px 0 0 rgba(38, 20, 12, 0.24);
-        transition: height 400ms steps(5, end), opacity 240ms ease;
+        object-fit: contain;
+        image-rendering: pixelated;
+        filter:
+          drop-shadow(0 5px 0 rgba(74, 43, 29, 0.1))
+          drop-shadow(0 8px 12px rgba(74, 43, 29, 0.18));
       }
 
-      .coffee-meter-steam {
-        position: absolute;
-        bottom: 66%;
-        width: 4px;
-        height: 20%;
-        border-left: 3px solid rgba(217, 123, 64, 0.68);
-        opacity: 0.8;
-        animation: steam 2.8s steps(3, end) infinite;
-      }
-
-      .coffee-meter.is-empty .coffee-meter-liquid,
-      .coffee-meter.is-paused .coffee-meter-steam,
-      .coffee-meter.is-empty .coffee-meter-steam {
-        opacity: 0;
-      }
-
-      .coffee-meter.is-empty .coffee-meter-cup {
-        background:
-          linear-gradient(90deg, rgba(255, 255, 255, 0.72) 0 13%, transparent 13%),
-          linear-gradient(90deg, transparent 0 74%, rgba(180, 205, 210, 0.35) 74% 86%, transparent 86%),
-          rgba(255, 253, 248, 0.8);
-      }
-
-      .steam-a {
-        left: 30%;
-      }
-
-      .steam-b {
-        left: 53%;
-        animation-delay: 650ms;
-      }
-
-      .coffee-meter.is-paused .coffee-meter-cup {
+      .coffee-meter.is-paused .coffee-meter-frame {
         opacity: 0.78;
       }
 
@@ -578,14 +510,15 @@
 
   function updateCoffeeMeter() {
     const meter = cat?.querySelector(".coffee-meter");
-    const liquid = cat?.querySelector(".coffee-meter-liquid");
-    if (!meter || !liquid) return;
+    const frame = cat?.querySelector(".coffee-meter-frame");
+    if (!meter || !frame) return;
 
     const duration = getValidDuration(settings.coffeeDurationMs);
     const remaining = getCoffeeRemaining(settings);
     const fill = Math.max(0, Math.min(1, remaining / duration));
+    const frameIndex = Math.min(5, Math.floor((1 - fill) * 6));
 
-    liquid.style.height = `${Math.round(fill * 100)}%`;
+    frame.src = frame.dataset[`frame-${frameIndex}`];
     meter.classList.toggle("is-empty", remaining <= 0);
     meter.classList.toggle("is-paused", !settings.coffeeRunning);
   }

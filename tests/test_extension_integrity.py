@@ -74,7 +74,15 @@ def test_web_accessible_assets_match_content_script_usage():
 
     assert "assets/coffeecat-idle.png" in resources
     assert "assets/coffeecat-sip.png" not in resources
-    assert not any(resource.startswith("assets/mugs/") for resource in resources)
+    for level in (
+        "mug-1-full",
+        "mug-2-80",
+        "mug-3-60",
+        "mug-4-40",
+        "mug-5-20",
+        "mug-6-empty",
+    ):
+        assert f"assets/mugs/{level}.png" in resources
 
 
 def test_javascript_files_parse():
@@ -108,8 +116,7 @@ def test_focus_timer_controls_and_storage_contract_exist():
 
     assert "getCoffeeRemaining" in popup_js
     assert "getCoffeeRemaining" in content_js
-    assert "coffee-meter-liquid" in content_js
-    assert "assets/mugs/" not in content_js
+    assert "coffee-meter-frame" in content_js
 
 
 def test_png_assets_are_valid_and_icon_sized():
@@ -126,9 +133,22 @@ def test_png_assets_are_valid_and_icon_sized():
         assert bit_depth == 8
         assert color_type == 6
 
-    for path in ("assets/coffeecat-buddy.png", "assets/coffeecat-idle.png"):
+    for path in ("assets/coffeecat-buddy.png", "assets/coffeecat-idle.png", "assets/coffeecat-main.png"):
         width, height, bit_depth, color_type = png_header(path)
-        assert width > 0 and height > 0
+        assert (width, height) == (256, 256)
+        assert bit_depth == 8
+        assert color_type == 6
+
+    for path in (
+        "assets/mugs/mug-1-full.png",
+        "assets/mugs/mug-2-80.png",
+        "assets/mugs/mug-3-60.png",
+        "assets/mugs/mug-4-40.png",
+        "assets/mugs/mug-5-20.png",
+        "assets/mugs/mug-6-empty.png",
+    ):
+        width, height, bit_depth, color_type = png_header(path)
+        assert (width, height) == (256, 256)
         assert bit_depth == 8
         assert color_type == 6
 
