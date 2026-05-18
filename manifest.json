@@ -31,16 +31,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": [
-        "assets/coffeecat-buddy.png",
-        "assets/coffeecat-idle.png",
-        "assets/mugs/mug-1-full.png",
-        "assets/mugs/mug-2-80.png",
-        "assets/mugs/mug-3-60.png",
-        "assets/mugs/mug-4-40.png",
-        "assets/mugs/mug-5-20.png",
-        "assets/mugs/mug-6-empty.png"
-      ],
+      "resources": ["assets/coffeecat-buddy.png"],
       "matches": ["http://*/*", "https://*/*"]
     }
   ]

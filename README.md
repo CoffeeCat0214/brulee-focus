@@ -14,23 +14,10 @@ CoffeeCat is a tiny Chrome extension that puts a pixel coffee cat buddy on the p
 
 - Click the CoffeeCat toolbar icon to open settings.
 - Toggle CoffeeCat on or off.
-- Start, pause, and refill the 25-minute Focus Coffee timer.
 - Choose small, medium, or large.
 - Drag CoffeeCat to a new spot on the page.
 - Click CoffeeCat to sip and purr.
 - Use **Reset position** to return CoffeeCat to the default corner.
-
-## Focus Coffee
-
-CoffeeCat includes a built-in 25-minute focus timer. Start it from the popup and the tiny coffee meter beside CoffeeCat drains from full to empty while you work. Pause keeps the current coffee level, and Refill resets the timer back to `25:00`.
-
-## Local Checks
-
-Run the extension integrity checks before loading or committing changes:
-
-```bash
-python3 -B tests/test_extension_integrity.py
-```
 
 ## Privacy
 

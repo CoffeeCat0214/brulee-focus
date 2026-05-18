@@ -3,11 +3,7 @@
   const DEFAULT_SETTINGS = {
     enabled: true,
     size: "medium",
-    position: null,
-    coffeeDurationMs: 25 * 60 * 1000,
-    coffeePausedRemainingMs: 25 * 60 * 1000,
-    coffeeRunning: false,
-    coffeeStartedAt: null
+    position: null
   };
 
   const SIZE_MAP = {
@@ -22,7 +18,6 @@
   let cat = null;
   let dragState = null;
   let moodTimer = null;
-  let coffeeTimer = null;
   let audioContext = null;
 
   init();
@@ -53,12 +48,7 @@
           resolve({
             ...DEFAULT_SETTINGS,
             ...stored,
-            size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size,
-            coffeeDurationMs: getValidDuration(stored.coffeeDurationMs),
-            coffeePausedRemainingMs: getValidRemaining(
-              stored.coffeePausedRemainingMs,
-              stored.coffeeDurationMs
-            )
+            size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size
           });
         });
       } catch {
@@ -77,7 +67,6 @@
     document.documentElement.appendChild(root);
 
     applySettings();
-    startCoffeeTimer();
     scheduleMood();
   }
 
@@ -137,8 +126,6 @@
   function unmount() {
     window.clearTimeout(moodTimer);
     moodTimer = null;
-    window.clearInterval(coffeeTimer);
-    coffeeTimer = null;
     dragState = null;
 
     if (root) {
@@ -156,30 +143,9 @@
     cat.type = "button";
     cat.title = "CoffeeCat";
     cat.setAttribute("aria-label", "CoffeeCat browser buddy");
-    const idleImage = getExtensionUrl("assets/coffeecat-idle.png");
-    const mugFrames = [
-      getExtensionUrl("assets/mugs/mug-1-full.png"),
-      getExtensionUrl("assets/mugs/mug-2-80.png"),
-      getExtensionUrl("assets/mugs/mug-3-60.png"),
-      getExtensionUrl("assets/mugs/mug-4-40.png"),
-      getExtensionUrl("assets/mugs/mug-5-20.png"),
-      getExtensionUrl("assets/mugs/mug-6-empty.png")
-    ];
+    const buddyImage = getExtensionUrl("assets/coffeecat-buddy.png");
     cat.innerHTML = `
-      <img class="cat-art" src="${idleImage}" alt="">
-      <span class="coffee-meter" aria-hidden="true">
-        <img
-          class="coffee-meter-frame"
-          src="${mugFrames[0]}"
-          data-frame-0="${mugFrames[0]}"
-          data-frame-1="${mugFrames[1]}"
-          data-frame-2="${mugFrames[2]}"
-          data-frame-3="${mugFrames[3]}"
-          data-frame-4="${mugFrames[4]}"
-          data-frame-5="${mugFrames[5]}"
-          alt=""
-        >
-      </span>
+      <img class="cat-art" src="${buddyImage}" alt="">
       <span class="purr-bubble">prr</span>
     `;
 
@@ -258,33 +224,6 @@
           drop-shadow(0 8px 0 rgba(74, 43, 29, 0.12))
           drop-shadow(0 10px 18px rgba(74, 43, 29, 0.18))
           saturate(0.92);
-      }
-
-      .coffee-meter {
-        position: absolute;
-        right: -21%;
-        bottom: -10%;
-        z-index: 3;
-        display: block;
-        width: 52%;
-        height: 52%;
-        pointer-events: none;
-        image-rendering: pixelated;
-      }
-
-      .coffee-meter-frame {
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        image-rendering: pixelated;
-        filter:
-          drop-shadow(0 5px 0 rgba(74, 43, 29, 0.1))
-          drop-shadow(0 8px 12px rgba(74, 43, 29, 0.18));
-      }
-
-      .coffee-meter.is-paused .coffee-meter-frame {
-        opacity: 0.78;
       }
 
       .purr-bubble {
@@ -498,29 +437,6 @@
       root.style.right = "24px";
       root.style.bottom = "24px";
     }
-
-    updateCoffeeMeter();
-  }
-
-  function startCoffeeTimer() {
-    window.clearInterval(coffeeTimer);
-    updateCoffeeMeter();
-    coffeeTimer = window.setInterval(updateCoffeeMeter, 1000);
-  }
-
-  function updateCoffeeMeter() {
-    const meter = cat?.querySelector(".coffee-meter");
-    const frame = cat?.querySelector(".coffee-meter-frame");
-    if (!meter || !frame) return;
-
-    const duration = getValidDuration(settings.coffeeDurationMs);
-    const remaining = getCoffeeRemaining(settings);
-    const fill = Math.max(0, Math.min(1, remaining / duration));
-    const frameIndex = Math.min(5, Math.floor((1 - fill) * 6));
-
-    frame.src = frame.dataset[`frame-${frameIndex}`];
-    meter.classList.toggle("is-empty", remaining <= 0);
-    meter.classList.toggle("is-paused", !settings.coffeeRunning);
   }
 
   function startDrag(event) {
@@ -650,25 +566,5 @@
         scheduleMood();
       }, 3200);
     }, 12000 + Math.random() * 10000);
-  }
-
-  function getCoffeeRemaining(source) {
-    const duration = getValidDuration(source.coffeeDurationMs);
-    const pausedRemaining = getValidRemaining(source.coffeePausedRemainingMs, duration);
-
-    if (!source.coffeeRunning || !Number.isFinite(source.coffeeStartedAt)) {
-      return pausedRemaining;
-    }
-
-    return Math.max(0, duration - (Date.now() - source.coffeeStartedAt));
-  }
-
-  function getValidDuration(value) {
-    return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.coffeeDurationMs;
-  }
-
-  function getValidRemaining(value, durationValue) {
-    const duration = getValidDuration(durationValue);
-    return Number.isFinite(value) ? Math.max(0, Math.min(value, duration)) : duration;
   }
 })();

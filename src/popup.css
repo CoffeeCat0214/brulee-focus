@@ -38,12 +38,6 @@ h1 {
   line-height: 1.1;
 }
 
-h2 {
-  margin: 0;
-  font-size: 14px;
-  line-height: 1.2;
-}
-
 p {
   margin-top: 3px;
   color: #6f594d;
@@ -116,57 +110,4 @@ button {
 
 button:active {
   transform: translateY(1px);
-}
-
-.focus-panel {
-  display: grid;
-  gap: 10px;
-  padding: 12px;
-  border: 2px solid #4a2b1d;
-  border-radius: 8px;
-  background: #fffdf8;
-  box-shadow: 0 4px 0 rgba(74, 43, 29, 0.08);
-}
-
-.focus-header,
-.timer-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-#timer-display {
-  min-width: 56px;
-  color: #4a2b1d;
-  font-size: 20px;
-  line-height: 1;
-  text-align: right;
-}
-
-.coffee-progress {
-  position: relative;
-  height: 12px;
-  overflow: hidden;
-  border: 2px solid #4a2b1d;
-  border-radius: 4px;
-  background: #f0dfca;
-}
-
-#coffee-progress-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 100%;
-  background: linear-gradient(90deg, #4a2b1d, #d97b40);
-  transition: width 240ms steps(5, end);
-}
-
-.timer-actions button {
-  width: auto;
-  flex: 1;
-}
-
-button.secondary {
-  background: #fff8ef;
-  color: #4a2b1d;
 }
