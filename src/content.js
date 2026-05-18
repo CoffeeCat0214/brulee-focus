@@ -1,9 +1,14 @@
 (function coffeeCatContent() {
   const ROOT_ID = "coffeecat-root";
+  const FOCUS_DURATION_MS = 25 * 60 * 1000;
   const DEFAULT_SETTINGS = {
     enabled: true,
     size: "medium",
-    position: null
+    position: null,
+    coffeeDurationMs: FOCUS_DURATION_MS,
+    coffeePausedRemainingMs: FOCUS_DURATION_MS,
+    coffeeRunning: false,
+    coffeeStartedAt: null
   };
 
   const SIZE_MAP = {
@@ -18,6 +23,7 @@
   let cat = null;
   let dragState = null;
   let moodTimer = null;
+  let coffeeTimer = null;
   let audioContext = null;
 
   init();
@@ -48,7 +54,12 @@
           resolve({
             ...DEFAULT_SETTINGS,
             ...stored,
-            size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size
+            size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size,
+            coffeeDurationMs: getValidDuration(stored.coffeeDurationMs),
+            coffeePausedRemainingMs: getValidRemaining(
+              stored.coffeePausedRemainingMs,
+              stored.coffeeDurationMs
+            )
           });
         });
       } catch {
@@ -67,6 +78,7 @@
     document.documentElement.appendChild(root);
 
     applySettings();
+    startCoffeeTimer();
     scheduleMood();
   }
 
@@ -126,6 +138,8 @@
   function unmount() {
     window.clearTimeout(moodTimer);
     moodTimer = null;
+    window.clearInterval(coffeeTimer);
+    coffeeTimer = null;
     dragState = null;
 
     if (root) {
@@ -146,6 +160,13 @@
     const buddyImage = getExtensionUrl("assets/coffeecat-buddy.png");
     cat.innerHTML = `
       <img class="cat-art" src="${buddyImage}" alt="">
+      <span class="coffee-meter" aria-hidden="true">
+        <span class="coffee-steam steam-a"></span>
+        <span class="coffee-steam steam-b"></span>
+        <span class="glass-mug">
+          <span class="coffee-fill"></span>
+        </span>
+      </span>
       <span class="purr-bubble">prr</span>
     `;
 
@@ -226,6 +247,107 @@
           saturate(0.92);
       }
 
+      .coffee-meter {
+        position: absolute;
+        right: -12%;
+        bottom: 6%;
+        z-index: 3;
+        width: 34%;
+        height: 34%;
+        pointer-events: none;
+        image-rendering: pixelated;
+      }
+
+      .glass-mug {
+        position: absolute;
+        left: 6%;
+        right: 23%;
+        bottom: 0;
+        height: 66%;
+        border: 3px solid var(--fur-dark);
+        border-top-width: 4px;
+        border-radius: 5px 5px 8px 8px;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.78) 0 13%, transparent 13%),
+          linear-gradient(90deg, transparent 0 73%, rgba(170, 205, 212, 0.42) 73% 86%, transparent 86%),
+          rgba(255, 253, 248, 0.68);
+        box-sizing: border-box;
+        filter:
+          drop-shadow(0 3px 0 rgba(74, 43, 29, 0.12))
+          drop-shadow(0 5px 8px rgba(74, 43, 29, 0.16));
+      }
+
+      .glass-mug::before {
+        content: "";
+        position: absolute;
+        left: 9%;
+        right: 9%;
+        top: 9%;
+        height: 7%;
+        border-top: 2px solid rgba(74, 43, 29, 0.35);
+        border-radius: 50%;
+        z-index: 2;
+      }
+
+      .glass-mug::after {
+        content: "";
+        position: absolute;
+        right: -46%;
+        top: 25%;
+        width: 44%;
+        height: 45%;
+        border: 3px solid var(--fur-dark);
+        border-left: 0;
+        border-radius: 0 8px 8px 0;
+        box-sizing: border-box;
+      }
+
+      .coffee-fill {
+        position: absolute;
+        left: 9%;
+        right: 9%;
+        bottom: 8%;
+        height: 100%;
+        max-height: 78%;
+        border-radius: 2px 2px 6px 6px;
+        background:
+          linear-gradient(rgba(244, 174, 94, 0.55), rgba(244, 174, 94, 0) 20%),
+          linear-gradient(#8f481d, #32170d);
+        box-shadow:
+          inset 4px 0 0 rgba(255, 255, 255, 0.22),
+          inset -2px 0 0 rgba(30, 14, 8, 0.24);
+        transition: height 360ms steps(5, end), opacity 180ms ease;
+      }
+
+      .coffee-steam {
+        position: absolute;
+        bottom: 67%;
+        width: 4px;
+        height: 22%;
+        border-left: 3px solid rgba(217, 123, 64, 0.72);
+        opacity: 0.82;
+        animation: steam 2.8s steps(3, end) infinite;
+      }
+
+      .steam-a {
+        left: 28%;
+      }
+
+      .steam-b {
+        left: 52%;
+        animation-delay: 650ms;
+      }
+
+      .coffee-meter.is-paused .coffee-steam,
+      .coffee-meter.is-empty .coffee-steam,
+      .coffee-meter.is-empty .coffee-fill {
+        opacity: 0;
+      }
+
+      .coffee-meter.is-paused .glass-mug {
+        opacity: 0.78;
+      }
+
       .purr-bubble {
         position: absolute;
         left: 5%;
@@ -242,152 +364,9 @@
         transition: opacity 120ms ease, transform 260ms steps(3, end);
       }
 
-      .head {
-        left: 20%;
-        top: 22%;
-        width: 58%;
-        height: 50%;
-        border: 4px solid var(--fur-dark);
-        border-radius: 8px;
-        background: var(--fur);
-        box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.12);
-      }
-
-      .ear {
-        top: 11%;
-        width: 20%;
-        height: 22%;
-        border: 4px solid var(--fur-dark);
-        background: var(--fur);
-        transform: rotate(45deg);
-      }
-
-      .ear-left {
-        left: 18%;
-      }
-
-      .ear-right {
-        right: 22%;
-      }
-
-      .eye {
-        top: 34%;
-        width: 8px;
-        height: 8px;
-        background: #15100d;
-        border-radius: 2px;
-        animation: blink 5.5s steps(1, end) infinite;
-      }
-
-      .eye-left {
-        left: 28%;
-      }
-
-      .eye-right {
-        right: 28%;
-      }
-
-      .muzzle {
-        left: 38%;
-        top: 49%;
-        width: 24%;
-        height: 18%;
-        background: var(--cream);
-        border: 3px solid var(--fur-dark);
-        border-radius: 4px;
-      }
-
-      .muzzle::after {
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: 38%;
-        width: 5px;
-        height: 5px;
-        background: var(--fur-dark);
-        transform: translateX(-50%);
-      }
-
-      .whisker {
-        top: 55%;
-        width: 20%;
-        height: 3px;
-        background: var(--fur-dark);
-      }
-
-      .whisker-left {
-        left: 4%;
-      }
-
-      .whisker-right {
-        right: 4%;
-      }
-
-      .cup {
-        left: 51%;
-        top: 58%;
-        width: 30%;
-        height: 26%;
-        border: 4px solid var(--fur-dark);
-        border-radius: 4px 4px 8px 8px;
-        background: var(--cup);
-      }
-
-      .coffee {
-        left: 8%;
-        right: 8%;
-        top: 16%;
-        height: 5px;
-        background: var(--coffee);
-      }
-
-      .handle {
-        right: -16px;
-        top: 26%;
-        width: 16px;
-        height: 14px;
-        border: 4px solid var(--fur-dark);
-        border-left: 0;
-        border-radius: 0 8px 8px 0;
-      }
-
-      .tail {
-        left: 6%;
-        top: 50%;
-        width: 24%;
-        height: 18%;
-        border: 5px solid var(--fur-dark);
-        border-right: 0;
-        border-radius: 12px 0 0 12px;
-        background: transparent;
-      }
-
-      .steam {
-        top: 31%;
-        width: 6px;
-        height: 16px;
-        border-left: 3px solid var(--accent);
-        opacity: 0.72;
-        animation: steam 2.8s steps(3, end) infinite;
-      }
-
-      .steam-one {
-        left: 59%;
-      }
-
-      .steam-two {
-        left: 69%;
-        animation-delay: 700ms;
-      }
-
       @keyframes bob {
         0%, 100% { transform: translateY(0); }
         50% { transform: translateY(-3px); }
-      }
-
-      @keyframes blink {
-        0%, 92%, 100% { transform: scaleY(1); }
-        94%, 96% { transform: scaleY(0.18); }
       }
 
       @keyframes sip {
@@ -398,11 +377,6 @@
       @keyframes purr {
         0%, 100% { transform: translateX(0); }
         50% { transform: translateX(1px); }
-      }
-
-      @keyframes tail-purr {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-2px); }
       }
 
       @keyframes steam {
@@ -437,6 +411,28 @@
       root.style.right = "24px";
       root.style.bottom = "24px";
     }
+
+    updateCoffeeMeter();
+  }
+
+  function startCoffeeTimer() {
+    window.clearInterval(coffeeTimer);
+    updateCoffeeMeter();
+    coffeeTimer = window.setInterval(updateCoffeeMeter, 1000);
+  }
+
+  function updateCoffeeMeter() {
+    const meter = cat?.querySelector(".coffee-meter");
+    const fillElement = cat?.querySelector(".coffee-fill");
+    if (!meter || !fillElement) return;
+
+    const duration = getValidDuration(settings.coffeeDurationMs);
+    const remaining = getCoffeeRemaining(settings);
+    const fill = Math.max(0, Math.min(1, remaining / duration));
+
+    fillElement.style.height = `${Math.round(fill * 100)}%`;
+    meter.classList.toggle("is-empty", remaining <= 0);
+    meter.classList.toggle("is-paused", !settings.coffeeRunning);
   }
 
   function startDrag(event) {
@@ -566,5 +562,25 @@
         scheduleMood();
       }, 3200);
     }, 12000 + Math.random() * 10000);
+  }
+
+  function getCoffeeRemaining(source) {
+    const duration = getValidDuration(source.coffeeDurationMs);
+    const pausedRemaining = getValidRemaining(source.coffeePausedRemainingMs, duration);
+
+    if (!source.coffeeRunning || !Number.isFinite(source.coffeeStartedAt)) {
+      return pausedRemaining;
+    }
+
+    return Math.max(0, duration - (Date.now() - source.coffeeStartedAt));
+  }
+
+  function getValidDuration(value) {
+    return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.coffeeDurationMs;
+  }
+
+  function getValidRemaining(value, durationValue) {
+    const duration = getValidDuration(durationValue);
+    return Number.isFinite(value) ? Math.max(0, Math.min(value, duration)) : duration;
   }
 })();
