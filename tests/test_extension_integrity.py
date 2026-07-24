@@ -83,11 +83,13 @@ def test_focus_timer_contract_is_wired_without_external_mug_assets():
     for key in (
         "coffeeDurationMs",
         "coffeePausedRemainingMs",
+        "coffeeBrewMode",
+        "coffeeBrewLabel",
+        "coffeeBreakOnComplete",
         "coffeeRunning",
         "coffeeStartedAt",
         "coffeeSessionId",
         "completedCoffeeSessionId",
-        "blockedDomains",
         "breakRunning",
         "breakStartedAt",
         "breakDurationMs",
@@ -108,14 +110,26 @@ def test_focus_timer_contract_is_wired_without_external_mug_assets():
         "timer-status",
         "timer-toggle",
         "timer-refill",
-        "domain-form",
-        "blocked-domain",
-        "blocked-list",
+        "brew-deck",
+        "brew-detail-title",
+        "brew-detail-copy",
+        "brew-detail-break",
+        "brew-detail-ambient",
+        "brew-detail-cat",
         "stat-sessions",
         "stat-minutes",
         "stat-cups",
     ):
         assert f'id="{element_id}"' in html
+
+    for brew_mode in ("espresso", "slow-pour", "cold-brew", "decaf"):
+        assert f'data-brew-mode="{brew_mode}"' in html
+        assert brew_mode in popup
+
+    assert "brew-option" in html
+    assert "selectBrewMode" in popup
+    assert "breakOnComplete: true" in popup
+    assert "breakOnComplete: true" in content
 
 
 def test_static_site_documents_v2_launch():

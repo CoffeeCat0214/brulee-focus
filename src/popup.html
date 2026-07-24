@@ -36,24 +36,48 @@
           </span>
         </div>
 
+        <section id="brew-deck" class="brew-selector" aria-label="Brew mode">
+          <button class="brew-option" type="button" data-brew-mode="espresso" aria-pressed="true">
+            <strong>Espresso</strong>
+            <span>25m</span>
+          </button>
+          <button class="brew-option" type="button" data-brew-mode="slow-pour" aria-pressed="false">
+            <strong>Slow</strong>
+            <span>45m</span>
+          </button>
+          <button class="brew-option" type="button" data-brew-mode="cold-brew" aria-pressed="false">
+            <strong>Cold</strong>
+            <span>90m</span>
+          </button>
+          <button class="brew-option" type="button" data-brew-mode="decaf" aria-pressed="false">
+            <strong>Decaf</strong>
+            <span>15m</span>
+          </button>
+
+          <div class="brew-detail" aria-live="polite">
+            <strong id="brew-detail-title">Espresso Shot</strong>
+            <p id="brew-detail-copy">Fast, contained focus with Misu watching the door.</p>
+            <dl>
+              <div>
+                <dt>Break</dt>
+                <dd id="brew-detail-break">No break</dd>
+              </div>
+              <div>
+                <dt>Ambient</dt>
+                <dd id="brew-detail-ambient">Quiet cafe hum</dd>
+              </div>
+              <div>
+                <dt>Cat</dt>
+                <dd id="brew-detail-cat">Misu keeps watch</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
         <div class="timer-actions">
           <button id="timer-toggle" type="button">Start</button>
           <button id="timer-refill" type="button" class="secondary">Refill</button>
         </div>
-      </section>
-
-      <section class="gatekeeper-panel" aria-label="Gentle Gatekeeper settings">
-        <div>
-          <h2>Gentle Gatekeeper</h2>
-          <p id="gatekeeper-status">add distracting domains</p>
-        </div>
-
-        <form id="domain-form" class="domain-form">
-          <input id="blocked-domain" type="text" placeholder="youtube.com" aria-label="Domain to protect">
-          <button type="submit">Add</button>
-        </form>
-
-        <div id="blocked-list" class="blocked-list" aria-label="Protected domains"></div>
       </section>
 
       <section class="stats-panel" aria-label="Local CoffeeCat stats">

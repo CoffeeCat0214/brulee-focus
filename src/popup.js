@@ -4,11 +4,13 @@ const DEFAULT_SETTINGS = {
   position: null,
   coffeeDurationMs: 25 * 60 * 1000,
   coffeePausedRemainingMs: 25 * 60 * 1000,
+  coffeeBrewMode: "espresso",
+  coffeeBrewLabel: "Espresso Shot",
+  coffeeBreakOnComplete: false,
   coffeeRunning: false,
   coffeeStartedAt: null,
   coffeeSessionId: null,
   completedCoffeeSessionId: null,
-  blockedDomains: [],
   breakRunning: false,
   breakStartedAt: null,
   breakDurationMs: 5 * 60 * 1000,
@@ -21,6 +23,53 @@ const DEFAULT_SETTINGS = {
   }
 };
 const COFFEE_RENDER_INTERVAL_MS = 250;
+const BREW_MODES = {
+  espresso: {
+    id: "espresso",
+    label: "Espresso Shot",
+    durationMs: 25 * 60 * 1000,
+    breakOnComplete: false,
+    status: "espresso focus",
+    copy: "Fast, contained focus with Misu watching the door.",
+    breakLabel: "No break",
+    ambient: "Quiet cafe hum",
+    cat: "Misu keeps watch"
+  },
+  "slow-pour": {
+    id: "slow-pour",
+    label: "Slow Pour",
+    durationMs: 45 * 60 * 1000,
+    breakOnComplete: true,
+    status: "slow pour focus",
+    copy: "A longer brew with a softer landing and a real reset at the end.",
+    breakLabel: "5 min flood",
+    ambient: "Rain sounds",
+    cat: "Brulee naps nearby"
+  },
+  "cold-brew": {
+    id: "cold-brew",
+    label: "Cold Brew",
+    durationMs: 90 * 60 * 1000,
+    breakOnComplete: false,
+    status: "deep cold brew",
+    copy: "Deep work mode for closing the cafe and staying with one hard thing.",
+    breakLabel: "Cafe closed",
+    ambient: "Low room tone",
+    cat: "No interruptions"
+  },
+  decaf: {
+    id: "decaf",
+    label: "Decaf",
+    durationMs: 15 * 60 * 1000,
+    breakOnComplete: false,
+    status: "gentle decaf",
+    copy: "A low-pressure start when momentum matters more than intensity.",
+    breakLabel: "No break",
+    ambient: "Soft start",
+    cat: "No judgment"
+  }
+};
+const DEFAULT_BREW_MODE = BREW_MODES.espresso;
 
 const enabledInput = document.getElementById("enabled");
 const sizeSelect = document.getElementById("size");
@@ -30,10 +79,13 @@ const timerStatus = document.getElementById("timer-status");
 const timerToggle = document.getElementById("timer-toggle");
 const timerRefill = document.getElementById("timer-refill");
 const progressFill = document.getElementById("coffee-progress-fill");
-const gatekeeperStatus = document.getElementById("gatekeeper-status");
-const domainForm = document.getElementById("domain-form");
-const blockedDomainInput = document.getElementById("blocked-domain");
-const blockedList = document.getElementById("blocked-list");
+const brewDeck = document.getElementById("brew-deck");
+const brewOptions = Array.from(document.querySelectorAll(".brew-option"));
+const brewDetailTitle = document.getElementById("brew-detail-title");
+const brewDetailCopy = document.getElementById("brew-detail-copy");
+const brewDetailBreak = document.getElementById("brew-detail-break");
+const brewDetailAmbient = document.getElementById("brew-detail-ambient");
+const brewDetailCat = document.getElementById("brew-detail-cat");
 const statSessions = document.getElementById("stat-sessions");
 const statMinutes = document.getElementById("stat-minutes");
 const statCups = document.getElementById("stat-cups");
@@ -66,7 +118,6 @@ function renderSettings() {
     : DEFAULT_SETTINGS.size;
 
   renderCoffeeTimer();
-  renderGatekeeper();
   renderStats();
 }
 
@@ -80,11 +131,17 @@ function renderCoffeeTimer() {
   const duration = getValidDuration(settings.coffeeDurationMs);
   const remaining = getCoffeeRemaining(settings);
   const fill = Math.max(0, Math.min(1, remaining / duration));
+  const activeMode = getBrewMode(settings.coffeeBrewMode);
 
   timerDisplay.textContent = formatTime(remaining);
   progressFill.style.transform = `scaleY(${fill.toFixed(4)})`;
   progressFill.style.opacity = remaining <= 0 ? "0.35" : "1";
-  timerToggle.textContent = settings.coffeeRunning && remaining > 0 ? "Pause" : "Start";
+  timerToggle.textContent = settings.coffeeRunning && remaining > 0
+    ? "Pause"
+    : remaining < duration && remaining > 0
+      ? "Resume"
+      : "Start";
+  renderBrewSelector(activeMode, remaining, duration);
 
   if (settings.coffeeRunning && remaining <= 0) {
     completeFocusSession();
@@ -93,45 +150,30 @@ function renderCoffeeTimer() {
   if (settings.breakRunning) {
     timerStatus.textContent = "break time";
   } else if (remaining <= 0) {
-    timerStatus.textContent = "empty cup";
+    timerStatus.textContent = `${settings.coffeeBrewLabel} complete`;
   } else if (settings.coffeeRunning) {
-    timerStatus.textContent = "brewing focus";
+    timerStatus.textContent = activeMode.status;
   } else if (remaining < duration) {
-    timerStatus.textContent = "paused";
+    timerStatus.textContent = `${settings.coffeeBrewLabel} paused`;
   } else {
-    timerStatus.textContent = "ready to brew";
+    timerStatus.textContent = `ready for ${settings.coffeeBrewLabel}`;
   }
 }
 
-function renderGatekeeper() {
-  const domains = normalizeBlockedDomains(settings.blockedDomains);
-  gatekeeperStatus.textContent = domains.length
-    ? `${domains.length} protected ${domains.length === 1 ? "domain" : "domains"}`
-    : "add distracting domains";
-  blockedList.textContent = "";
-
-  if (!domains.length) {
-    const empty = document.createElement("span");
-    empty.className = "domain-chip";
-    empty.textContent = "no domains yet";
-    blockedList.append(empty);
-    return;
-  }
-
-  domains.forEach((domain) => {
-    const chip = document.createElement("span");
-    chip.className = "domain-chip";
-    chip.textContent = domain;
-
-    const removeButton = document.createElement("button");
-    removeButton.type = "button";
-    removeButton.setAttribute("aria-label", `Remove ${domain}`);
-    removeButton.textContent = "x";
-    removeButton.addEventListener("click", () => removeBlockedDomain(domain));
-
-    chip.append(removeButton);
-    blockedList.append(chip);
+function renderBrewSelector(activeMode, remaining, duration) {
+  const selectionLocked = settings.coffeeRunning || (remaining < duration && remaining > 0);
+  brewDeck.classList.toggle("is-locked", selectionLocked);
+  brewOptions.forEach((option) => {
+    const isSelected = option.dataset.brewMode === activeMode.id;
+    option.setAttribute("aria-pressed", String(isSelected));
+    option.disabled = selectionLocked;
   });
+
+  brewDetailTitle.textContent = activeMode.label;
+  brewDetailCopy.textContent = activeMode.copy;
+  brewDetailBreak.textContent = activeMode.breakLabel;
+  brewDetailAmbient.textContent = activeMode.ambient;
+  brewDetailCat.textContent = activeMode.cat;
 }
 
 function renderStats() {
@@ -152,17 +194,8 @@ resetButton.addEventListener("click", () => {
   chrome.storage.sync.set({ position: null });
 });
 
-domainForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const domain = normalizeDomain(blockedDomainInput.value);
-  if (!domain) return;
-
-  const blockedDomains = normalizeBlockedDomains([...settings.blockedDomains, domain]);
-  blockedDomainInput.value = "";
-  chrome.storage.sync.set({ blockedDomains });
-});
-
 timerToggle.addEventListener("click", () => {
+  const activeMode = getBrewMode(settings.coffeeBrewMode);
   const duration = getValidDuration(settings.coffeeDurationMs);
   const remaining = getCoffeeRemaining(settings);
 
@@ -178,10 +211,14 @@ timerToggle.addEventListener("click", () => {
   const nextRemaining = remaining || duration;
   const coffeeSessionId = `${Date.now()}-${Math.round(Math.random() * 100000)}`;
   chrome.storage.sync.set({
+    coffeeBrewMode: activeMode.id,
+    coffeeBrewLabel: activeMode.label,
+    coffeeBreakOnComplete: activeMode.breakOnComplete,
     coffeeRunning: true,
     coffeeStartedAt: Date.now() - (duration - nextRemaining),
     coffeePausedRemainingMs: nextRemaining,
     coffeeSessionId,
+    completedCoffeeSessionId: null,
     breakRunning: false,
     breakStartedAt: null,
     snoozeUsedForSession: false,
@@ -190,11 +227,16 @@ timerToggle.addEventListener("click", () => {
 });
 
 timerRefill.addEventListener("click", () => {
-  const duration = getValidDuration(settings.coffeeDurationMs);
+  const activeMode = getBrewMode(settings.coffeeBrewMode);
+  const duration = activeMode.durationMs;
   chrome.storage.sync.set({
     coffeeRunning: false,
     coffeeStartedAt: null,
     coffeePausedRemainingMs: duration,
+    coffeeDurationMs: duration,
+    coffeeBrewMode: activeMode.id,
+    coffeeBrewLabel: activeMode.label,
+    coffeeBreakOnComplete: activeMode.breakOnComplete,
     breakRunning: false,
     breakStartedAt: null,
     snoozeUsedForSession: false,
@@ -202,11 +244,35 @@ timerRefill.addEventListener("click", () => {
   });
 });
 
-function removeBlockedDomain(domain) {
-  const blockedDomains = normalizeBlockedDomains(settings.blockedDomains).filter(
-    (blockedDomain) => blockedDomain !== domain
-  );
-  chrome.storage.sync.set({ blockedDomains });
+brewOptions.forEach((option) => {
+  option.addEventListener("click", () => {
+    selectBrewMode(option.dataset.brewMode);
+  });
+});
+
+function selectBrewMode(modeId) {
+  const mode = getBrewMode(modeId);
+  if (settings.coffeeRunning) return;
+
+  const remaining = getCoffeeRemaining(settings);
+  const currentDuration = getValidDuration(settings.coffeeDurationMs);
+  if (remaining < currentDuration && remaining > 0) return;
+
+  chrome.storage.sync.set({
+    coffeeDurationMs: mode.durationMs,
+    coffeePausedRemainingMs: mode.durationMs,
+    coffeeBrewMode: mode.id,
+    coffeeBrewLabel: mode.label,
+    coffeeBreakOnComplete: mode.breakOnComplete,
+    coffeeRunning: false,
+    coffeeStartedAt: null,
+    coffeeSessionId: null,
+    completedCoffeeSessionId: null,
+    breakRunning: false,
+    breakStartedAt: null,
+    snoozeUsedForSession: false,
+    snoozeSessionRunning: false
+  });
 }
 
 function completeFocusSession() {
@@ -215,6 +281,7 @@ function completeFocusSession() {
   }
 
   const duration = getValidDuration(settings.coffeeDurationMs);
+  const shouldBreak = Boolean(settings.coffeeBreakOnComplete);
   const focusStats = settings.snoozeSessionRunning
     ? settings.focusStats
     : {
@@ -229,8 +296,8 @@ function completeFocusSession() {
     coffeeStartedAt: null,
     coffeePausedRemainingMs: 0,
     completedCoffeeSessionId: settings.coffeeSessionId,
-    breakRunning: true,
-    breakStartedAt: Date.now(),
+    breakRunning: shouldBreak,
+    breakStartedAt: shouldBreak ? Date.now() : null,
     snoozeSessionRunning: false,
     focusStats
   };
@@ -240,7 +307,7 @@ function completeFocusSession() {
     coffeeStartedAt: null,
     coffeePausedRemainingMs: 0,
     completedCoffeeSessionId: settings.coffeeSessionId,
-    breakRunning: true,
+    breakRunning: shouldBreak,
     breakStartedAt: settings.breakStartedAt,
     snoozeSessionRunning: false,
     focusStats
@@ -248,34 +315,30 @@ function completeFocusSession() {
 }
 
 function normalizeSettings(source) {
+  const brewMode = getBrewMode(source.coffeeBrewMode);
+  const coffeeDurationMs = getValidDuration(source.coffeeDurationMs);
   return {
     ...DEFAULT_SETTINGS,
     ...source,
-    blockedDomains: normalizeBlockedDomains(source.blockedDomains),
     breakDurationMs: getValidBreakDuration(source.breakDurationMs),
     focusStats: normalizeFocusStats(source.focusStats),
-    coffeeDurationMs: getValidDuration(source.coffeeDurationMs),
+    coffeeBrewMode: brewMode.id,
+    coffeeBrewLabel: typeof source.coffeeBrewLabel === "string" && source.coffeeBrewLabel.trim()
+      ? source.coffeeBrewLabel
+      : brewMode.label,
+    coffeeBreakOnComplete: typeof source.coffeeBreakOnComplete === "boolean"
+      ? source.coffeeBreakOnComplete
+      : brewMode.breakOnComplete,
+    coffeeDurationMs,
     coffeePausedRemainingMs: getValidRemaining(
       source.coffeePausedRemainingMs,
-      source.coffeeDurationMs
+      coffeeDurationMs
     )
   };
 }
 
-function normalizeBlockedDomains(value) {
-  if (!Array.isArray(value)) return [];
-  return [...new Set(value.map(normalizeDomain).filter(Boolean))];
-}
-
-function normalizeDomain(value) {
-  if (typeof value !== "string") return "";
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .replace(/^www\./, "")
-    .split("/")[0]
-    .replace(/[^a-z0-9.-]/g, "");
+function getBrewMode(modeId) {
+  return BREW_MODES[modeId] || DEFAULT_BREW_MODE;
 }
 
 function normalizeFocusStats(value) {

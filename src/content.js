@@ -10,11 +10,13 @@
     position: null,
     coffeeDurationMs: FOCUS_DURATION_MS,
     coffeePausedRemainingMs: FOCUS_DURATION_MS,
+    coffeeBrewMode: "espresso",
+    coffeeBrewLabel: "Espresso Shot",
+    coffeeBreakOnComplete: false,
     coffeeRunning: false,
     coffeeStartedAt: null,
     coffeeSessionId: null,
     completedCoffeeSessionId: null,
-    blockedDomains: [],
     breakRunning: false,
     breakStartedAt: null,
     breakDurationMs: BREAK_DURATION_MS,
@@ -26,6 +28,34 @@
       cupsFinished: 0
     }
   };
+
+  const BREW_MODES = {
+    espresso: {
+      id: "espresso",
+      label: "Espresso Shot",
+      durationMs: 25 * 60 * 1000,
+      breakOnComplete: false
+    },
+    "slow-pour": {
+      id: "slow-pour",
+      label: "Slow Pour",
+      durationMs: 45 * 60 * 1000,
+      breakOnComplete: true
+    },
+    "cold-brew": {
+      id: "cold-brew",
+      label: "Cold Brew",
+      durationMs: 90 * 60 * 1000,
+      breakOnComplete: false
+    },
+    decaf: {
+      id: "decaf",
+      label: "Decaf",
+      durationMs: 15 * 60 * 1000,
+      breakOnComplete: false
+    }
+  };
+  const DEFAULT_BREW_MODE = BREW_MODES.espresso;
 
   const SIZE_MAP = {
     small: 64,
@@ -71,19 +101,11 @@
               return;
             }
 
-            resolve({
+            resolve(normalizeSettings({
               ...DEFAULT_SETTINGS,
               ...stored,
-              size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size,
-              blockedDomains: normalizeBlockedDomains(stored.blockedDomains),
-              breakDurationMs: getValidBreakDuration(stored.breakDurationMs),
-              focusStats: normalizeFocusStats(stored.focusStats),
-              coffeeDurationMs: getValidDuration(stored.coffeeDurationMs),
-              coffeePausedRemainingMs: getValidRemaining(
-                stored.coffeePausedRemainingMs,
-                stored.coffeeDurationMs
-              )
-            });
+              size: SIZE_MAP[stored.size] ? stored.size : DEFAULT_SETTINGS.size
+            }));
           } catch {
             handleInvalidatedContext();
             resolve(DEFAULT_SETTINGS);
@@ -121,19 +143,15 @@
         try {
           if (areaName !== "sync") return;
 
-          settings = {
+          settings = normalizeSettings({
             ...settings,
             ...Object.fromEntries(
               Object.entries(changes).map(([key, change]) => [key, change.newValue])
             ),
-            blockedDomains: normalizeBlockedDomains(
-              changes.blockedDomains?.newValue ?? settings.blockedDomains
-            ),
-            breakDurationMs: getValidBreakDuration(
-              changes.breakDurationMs?.newValue ?? settings.breakDurationMs
-            ),
-            focusStats: normalizeFocusStats(changes.focusStats?.newValue ?? settings.focusStats)
-          };
+            size: SIZE_MAP[changes.size?.newValue ?? settings.size]
+              ? changes.size?.newValue ?? settings.size
+              : DEFAULT_SETTINGS.size
+          });
 
           if (!settings.enabled) {
             unmount();
@@ -531,6 +549,7 @@
     }
 
     const duration = getValidDuration(settings.coffeeDurationMs);
+    const shouldBreak = Boolean(settings.coffeeBreakOnComplete);
     const nextStats = settings.snoozeSessionRunning
       ? settings.focusStats
       : {
@@ -545,8 +564,8 @@
       coffeeStartedAt: null,
       coffeePausedRemainingMs: 0,
       completedCoffeeSessionId: settings.coffeeSessionId,
-      breakRunning: true,
-      breakStartedAt: Date.now(),
+      breakRunning: shouldBreak,
+      breakStartedAt: shouldBreak ? Date.now() : null,
       snoozeSessionRunning: false,
       focusStats: nextStats
     };
@@ -556,7 +575,7 @@
       coffeeStartedAt: null,
       coffeePausedRemainingMs: 0,
       completedCoffeeSessionId: settings.coffeeSessionId,
-      breakRunning: true,
+      breakRunning: shouldBreak,
       breakStartedAt: settings.breakStartedAt,
       snoozeSessionRunning: false,
       focusStats: nextStats
@@ -564,7 +583,7 @@
   }
 
   function renderBreakOverlay() {
-    const shouldShow = settings.enabled && settings.breakRunning && isCurrentDomainBlocked();
+    const shouldShow = settings.enabled && settings.breakRunning;
     if (!shouldShow) {
       removeBreakOverlay();
       return;
@@ -863,12 +882,17 @@
   }
 
   function refillCoffeeFromBreak() {
-    const duration = getValidDuration(settings.coffeeDurationMs);
+    const activeMode = getBrewMode(settings.coffeeBrewMode);
+    const duration = activeMode.durationMs;
     settings = {
       ...settings,
       coffeeRunning: false,
       coffeeStartedAt: null,
       coffeePausedRemainingMs: duration,
+      coffeeDurationMs: duration,
+      coffeeBrewMode: activeMode.id,
+      coffeeBrewLabel: activeMode.label,
+      coffeeBreakOnComplete: activeMode.breakOnComplete,
       breakRunning: false,
       breakStartedAt: null,
       snoozeUsedForSession: false,
@@ -878,6 +902,10 @@
       coffeeRunning: false,
       coffeeStartedAt: null,
       coffeePausedRemainingMs: duration,
+      coffeeDurationMs: duration,
+      coffeeBrewMode: activeMode.id,
+      coffeeBrewLabel: activeMode.label,
+      coffeeBreakOnComplete: activeMode.breakOnComplete,
       breakRunning: false,
       breakStartedAt: null,
       snoozeUsedForSession: false,
@@ -1083,27 +1111,29 @@
     return Math.max(0, duration - (Date.now() - source.breakStartedAt));
   }
 
-  function isCurrentDomainBlocked() {
-    const hostname = window.location.hostname.toLowerCase();
-    return normalizeBlockedDomains(settings.blockedDomains).some((domain) => {
-      return hostname === domain || hostname.endsWith(`.${domain}`);
-    });
+  function normalizeSettings(source) {
+    const brewMode = getBrewMode(source.coffeeBrewMode);
+    const coffeeDurationMs = getValidDuration(source.coffeeDurationMs);
+    return {
+      ...DEFAULT_SETTINGS,
+      ...source,
+      size: SIZE_MAP[source.size] ? source.size : DEFAULT_SETTINGS.size,
+      breakDurationMs: getValidBreakDuration(source.breakDurationMs),
+      focusStats: normalizeFocusStats(source.focusStats),
+      coffeeBrewMode: brewMode.id,
+      coffeeBrewLabel: typeof source.coffeeBrewLabel === "string" && source.coffeeBrewLabel.trim()
+        ? source.coffeeBrewLabel
+        : brewMode.label,
+      coffeeBreakOnComplete: typeof source.coffeeBreakOnComplete === "boolean"
+        ? source.coffeeBreakOnComplete
+        : brewMode.breakOnComplete,
+      coffeeDurationMs,
+      coffeePausedRemainingMs: getValidRemaining(source.coffeePausedRemainingMs, coffeeDurationMs)
+    };
   }
 
-  function normalizeBlockedDomains(value) {
-    if (!Array.isArray(value)) return [];
-    return [...new Set(value.map(normalizeDomain).filter(Boolean))];
-  }
-
-  function normalizeDomain(value) {
-    if (typeof value !== "string") return "";
-    return value
-      .trim()
-      .toLowerCase()
-      .replace(/^https?:\/\//, "")
-      .replace(/^www\./, "")
-      .split("/")[0]
-      .replace(/[^a-z0-9.-]/g, "");
+  function getBrewMode(modeId) {
+    return BREW_MODES[modeId] || DEFAULT_BREW_MODE;
   }
 
   function normalizeFocusStats(value) {

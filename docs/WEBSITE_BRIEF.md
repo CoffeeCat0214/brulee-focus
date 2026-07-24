@@ -44,10 +44,9 @@ Avoid claiming:
 - Reset position control.
 - Click interaction that triggers a sip/purr animation and sound.
 - Focus Coffee timer in the popup.
-- Gentle Gatekeeper domain list in the popup.
 - Floating cup next to CoffeeCat mirrors the timer state.
 - Coffee liquid drains as time runs out.
-- On user-managed protected domains, CoffeeCat can show a coffee-flood break overlay when Focus Coffee ends.
+- CoffeeCat shows a coffee-flood break overlay on the current page when Focus Coffee ends.
 - The break overlay fills the screen upward with semi-transparent coffee, then shows a five-minute countdown, refill action, and one snooze.
 - Local stats track sessions completed, minutes protected, and cups finished.
 - Coffee fill updates every `250ms` for smoother perceived motion.
