@@ -166,7 +166,10 @@ a.secondary {
   position: absolute;
   left: 21%;
   bottom: 18%;
-  width: min(300px, 52%);
+  /* Sized so the auto height lands at ~324px — the buddy art is 0.78:1, and at
+     the old 300px width the box grew to 385px and clipped against
+     .browser-page's 440px overflow:hidden. */
+  width: min(252px, 44%);
 }
 
 .demo-cat img {
@@ -180,8 +183,11 @@ a.secondary {
   position: absolute;
   right: -5%;
   bottom: 5%;
-  width: 28%;
-  height: 31%;
+  width: 33%;
+  /* aspect-ratio, not height:%, so the mug's shape is independent of the
+     buddy art's proportions — a percentage height resolved against the
+     image-derived container and silently rescaled on every art swap. */
+  aspect-ratio: 5 / 6;
   border: 6px solid #4a2b1d;
   border-radius: 12px 12px 18px 18px;
   background: linear-gradient(#fffdf8, #fff3e4);

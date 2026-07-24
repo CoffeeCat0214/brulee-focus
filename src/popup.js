@@ -23,6 +23,18 @@ const DEFAULT_SETTINGS = {
   }
 };
 const COFFEE_RENDER_INTERVAL_MS = 250;
+const SIZES = ["small", "medium", "large"];
+// Height of the cup's clipped interior in SVG user units. The liquid group
+// translates down by (1 - progress) * this to drain.
+const CUP_INTERIOR_HEIGHT = 55;
+
+/* Every string here must be checkable against the code in this repo. Earlier
+   versions carried fields describing a per-mode background-audio system and
+   named characters, none of which exist: the only sound path is playPurr() in
+   content.js, and there is a single cat image. `copy` therefore states
+   duration and break behaviour only — both are fields on this same object.
+   test_brew_modes_match_markup enforces this; do not add copy you cannot
+   point at an implementation for. */
 const BREW_MODES = {
   espresso: {
     id: "espresso",
@@ -30,10 +42,7 @@ const BREW_MODES = {
     durationMs: 25 * 60 * 1000,
     breakOnComplete: false,
     status: "espresso focus",
-    copy: "Fast, contained focus with Misu watching the door.",
-    breakLabel: "No break",
-    ambient: "Quiet cafe hum",
-    cat: "Misu keeps watch"
+    copy: "25 minutes, straight through."
   },
   "slow-pour": {
     id: "slow-pour",
@@ -41,10 +50,7 @@ const BREW_MODES = {
     durationMs: 45 * 60 * 1000,
     breakOnComplete: true,
     status: "slow pour focus",
-    copy: "A longer brew with a softer landing and a real reset at the end.",
-    breakLabel: "5 min flood",
-    ambient: "Rain sounds",
-    cat: "Brulee naps nearby"
+    copy: "45 minutes, then a 5-minute coffee flood."
   },
   "cold-brew": {
     id: "cold-brew",
@@ -52,10 +58,7 @@ const BREW_MODES = {
     durationMs: 90 * 60 * 1000,
     breakOnComplete: false,
     status: "deep cold brew",
-    copy: "Deep work mode for closing the cafe and staying with one hard thing.",
-    breakLabel: "Cafe closed",
-    ambient: "Low room tone",
-    cat: "No interruptions"
+    copy: "90 minutes. Deep work, no interruptions."
   },
   decaf: {
     id: "decaf",
@@ -63,16 +66,16 @@ const BREW_MODES = {
     durationMs: 15 * 60 * 1000,
     breakOnComplete: false,
     status: "gentle decaf",
-    copy: "A low-pressure start when momentum matters more than intensity.",
-    breakLabel: "No break",
-    ambient: "Soft start",
-    cat: "No judgment"
+    copy: "15 minutes. A low-pressure start."
   }
 };
 const DEFAULT_BREW_MODE = BREW_MODES.espresso;
 
+const paneFocus = document.getElementById("pane-focus");
+const paneSettings = document.getElementById("pane-settings");
+const openSettingsButton = document.getElementById("open-settings");
+const closeSettingsButton = document.getElementById("close-settings");
 const enabledInput = document.getElementById("enabled");
-const sizeSelect = document.getElementById("size");
 const resetButton = document.getElementById("reset-position");
 const timerDisplay = document.getElementById("timer-display");
 const timerStatus = document.getElementById("timer-status");
@@ -81,11 +84,10 @@ const timerRefill = document.getElementById("timer-refill");
 const progressFill = document.getElementById("coffee-progress-fill");
 const brewDeck = document.getElementById("brew-deck");
 const brewOptions = Array.from(document.querySelectorAll(".brew-option"));
-const brewDetailTitle = document.getElementById("brew-detail-title");
+const brewLockNote = document.getElementById("brew-lock-note");
 const brewDetailCopy = document.getElementById("brew-detail-copy");
-const brewDetailBreak = document.getElementById("brew-detail-break");
-const brewDetailAmbient = document.getElementById("brew-detail-ambient");
-const brewDetailCat = document.getElementById("brew-detail-cat");
+const sizeDeck = document.getElementById("size-deck");
+const sizeOptions = Array.from(document.querySelectorAll(".size-option"));
 const statSessions = document.getElementById("stat-sessions");
 const statMinutes = document.getElementById("stat-minutes");
 const statCups = document.getElementById("stat-cups");
@@ -93,10 +95,32 @@ const statCups = document.getElementById("stat-cups");
 let settings = { ...DEFAULT_SETTINGS };
 let renderTimer = null;
 
+/* Every DOM write below is guarded by one of these. The popup ticks 4x/sec;
+   writing unconditionally is what made the old brew-detail live region
+   announce continuously under a screen reader. */
+const painted = {
+  time: null,
+  fill: null,
+  drained: null,
+  toggleLabel: null,
+  refillHidden: null,
+  status: null,
+  modeKey: null,
+  size: null,
+  stats: null
+};
+
 chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
   settings = normalizeSettings(stored);
   renderSettings();
-  startRenderTimer();
+
+  // Suppress the segmented-thumb transition on first paint. The popup
+  // remounts every time it opens, so without this the thumb visibly slides
+  // in from index 0 on every single open.
+  requestAnimationFrame(() => {
+    brewDeck.classList.remove("no-anim");
+    sizeDeck.classList.remove("no-anim");
+  });
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -113,18 +137,23 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 function renderSettings() {
   enabledInput.checked = Boolean(settings.enabled);
-  sizeSelect.value = ["small", "medium", "large"].includes(settings.size)
-    ? settings.size
-    : DEFAULT_SETTINGS.size;
-
+  renderSize();
   renderCoffeeTimer();
   renderStats();
+  syncTicker();
 }
 
-function startRenderTimer() {
-  window.clearInterval(renderTimer);
-  renderCoffeeTimer();
-  renderTimer = window.setInterval(renderCoffeeTimer, COFFEE_RENDER_INTERVAL_MS);
+/* The interval exists only to advance a running clock. Idle is the common
+   case, and storage.onChanged already covers externally-driven updates. */
+function syncTicker() {
+  const shouldTick = Boolean(settings.coffeeRunning);
+
+  if (shouldTick && renderTimer === null) {
+    renderTimer = window.setInterval(renderCoffeeTimer, COFFEE_RENDER_INTERVAL_MS);
+  } else if (!shouldTick && renderTimer !== null) {
+    window.clearInterval(renderTimer);
+    renderTimer = null;
+  }
 }
 
 function renderCoffeeTimer() {
@@ -132,62 +161,170 @@ function renderCoffeeTimer() {
   const remaining = getCoffeeRemaining(settings);
   const fill = Math.max(0, Math.min(1, remaining / duration));
   const activeMode = getBrewMode(settings.coffeeBrewMode);
+  const selectionLocked = settings.coffeeRunning || (remaining < duration && remaining > 0);
 
-  timerDisplay.textContent = formatTime(remaining);
-  progressFill.style.transform = `scaleY(${fill.toFixed(4)})`;
-  progressFill.style.opacity = remaining <= 0 ? "0.35" : "1";
-  timerToggle.textContent = settings.coffeeRunning && remaining > 0
+  write("time", formatTime(remaining), (value) => {
+    timerDisplay.textContent = value;
+  });
+
+  // Translate the liquid group inside its clip rather than scaling or resizing
+  // it: the 1px crema rect rides along at a constant 1px instead of being
+  // squashed by the same transform that moves the surface.
+  write("fill", ((1 - fill) * CUP_INTERIOR_HEIGHT).toFixed(4), (value) => {
+    progressFill.style.transform = `translateY(${value}px)`;
+  });
+
+  write("drained", remaining <= 0, (value) => {
+    progressFill.style.opacity = value ? "0.35" : "1";
+  });
+
+  const toggleLabel = settings.coffeeRunning && remaining > 0
     ? "Pause"
     : remaining < duration && remaining > 0
       ? "Resume"
       : "Start";
-  renderBrewSelector(activeMode, remaining, duration);
+  write("toggleLabel", toggleLabel, (value) => {
+    timerToggle.textContent = value;
+  });
+
+  // Hide Refill when it would do nothing, rather than graying it out.
+  write("refillHidden", remaining >= duration, (value) => {
+    timerRefill.hidden = value;
+  });
+
+  write("status", getStatusText(activeMode, remaining, duration), (value) => {
+    timerStatus.textContent = value;
+  });
+
+  renderBrewSelector(activeMode, selectionLocked);
 
   if (settings.coffeeRunning && remaining <= 0) {
     completeFocusSession();
   }
-
-  if (settings.breakRunning) {
-    timerStatus.textContent = "break time";
-  } else if (remaining <= 0) {
-    timerStatus.textContent = `${settings.coffeeBrewLabel} complete`;
-  } else if (settings.coffeeRunning) {
-    timerStatus.textContent = activeMode.status;
-  } else if (remaining < duration) {
-    timerStatus.textContent = `${settings.coffeeBrewLabel} paused`;
-  } else {
-    timerStatus.textContent = `ready for ${settings.coffeeBrewLabel}`;
-  }
 }
 
-function renderBrewSelector(activeMode, remaining, duration) {
-  const selectionLocked = settings.coffeeRunning || (remaining < duration && remaining > 0);
-  brewDeck.classList.toggle("is-locked", selectionLocked);
-  brewOptions.forEach((option) => {
-    const isSelected = option.dataset.brewMode === activeMode.id;
-    option.setAttribute("aria-pressed", String(isSelected));
-    option.disabled = selectionLocked;
-  });
+/* Deliberately does not repeat the brew label — the selected segment already
+   names the mode directly below this caption. */
+function getStatusText(activeMode, remaining, duration) {
+  if (settings.breakRunning) return "break time";
+  if (remaining <= 0) return "complete";
+  if (settings.coffeeRunning) return activeMode.status;
+  if (remaining < duration) return "paused";
+  return "ready to brew";
+}
 
-  brewDetailTitle.textContent = activeMode.label;
-  brewDetailCopy.textContent = activeMode.copy;
-  brewDetailBreak.textContent = activeMode.breakLabel;
-  brewDetailAmbient.textContent = activeMode.ambient;
-  brewDetailCat.textContent = activeMode.cat;
+/* Mode copy only changes when the mode or the lock state does — not 4x/sec. */
+function renderBrewSelector(activeMode, selectionLocked) {
+  write("modeKey", `${activeMode.id}|${selectionLocked}`, () => {
+    brewDetailCopy.textContent = activeMode.copy;
+
+    brewOptions.forEach((option) => {
+      option.disabled = selectionLocked;
+    });
+    brewLockNote.hidden = !selectionLocked;
+
+    selectSegment(
+      brewDeck,
+      brewOptions,
+      brewOptions.findIndex((option) => option.dataset.brewMode === activeMode.id)
+    );
+  });
+}
+
+function renderSize() {
+  const size = SIZES.includes(settings.size) ? settings.size : DEFAULT_SETTINGS.size;
+  write("size", size, (value) => {
+    selectSegment(sizeDeck, sizeOptions, SIZES.indexOf(value));
+  });
 }
 
 function renderStats() {
-  statSessions.textContent = String(settings.focusStats.sessionsCompleted);
-  statMinutes.textContent = String(settings.focusStats.minutesProtected);
-  statCups.textContent = String(settings.focusStats.cupsFinished);
+  const stats = settings.focusStats;
+  write("stats", `${stats.sessionsCompleted}|${stats.minutesProtected}|${stats.cupsFinished}`, () => {
+    statSessions.textContent = String(stats.sessionsCompleted);
+    statMinutes.textContent = String(stats.minutesProtected);
+    statCups.textContent = String(stats.cupsFinished);
+  });
 }
+
+function write(key, value, apply) {
+  if (painted[key] === value) return;
+  painted[key] = value;
+  apply(value);
+}
+
+/* ── Segmented control ─────────────────────────────────────────────────
+   One-of-N selection is a radiogroup, not N independent toggles. The old
+   aria-pressed markup announced as four separate switches. */
+
+function selectSegment(deck, items, activeIndex) {
+  const index = activeIndex < 0 ? 0 : activeIndex;
+  deck.style.setProperty("--seg-index", String(index));
+  items.forEach((item, itemIndex) => {
+    const isActive = itemIndex === index;
+    item.setAttribute("aria-checked", String(isActive));
+    item.tabIndex = isActive ? 0 : -1;
+  });
+}
+
+function setupSegmentedKeys(items, onSelect) {
+  items.forEach((item, index) => {
+    item.addEventListener("click", () => onSelect(item));
+
+    item.addEventListener("keydown", (event) => {
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+      if (step === undefined && event.key !== "Home" && event.key !== "End") return;
+
+      event.preventDefault();
+      const enabled = items.filter((candidate) => !candidate.disabled);
+      if (enabled.length === 0) return;
+
+      let next;
+      if (event.key === "Home") {
+        next = enabled[0];
+      } else if (event.key === "End") {
+        next = enabled[enabled.length - 1];
+      } else {
+        const position = enabled.indexOf(items[index]);
+        next = enabled[(position + step + enabled.length) % enabled.length];
+      }
+
+      next.focus();
+      onSelect(next);
+    });
+  });
+}
+
+setupSegmentedKeys(brewOptions, (option) => selectBrewMode(option.dataset.brewMode));
+setupSegmentedKeys(sizeOptions, (option) => {
+  chrome.storage.sync.set({ size: option.dataset.size });
+});
+
+/* ── Panes ─────────────────────────────────────────────────────────────── */
+
+function showPane(name) {
+  const toSettings = name === "settings";
+  paneFocus.classList.toggle("is-active", !toSettings);
+  paneSettings.classList.toggle("is-active", toSettings);
+  paneFocus.inert = toSettings;
+  paneSettings.inert = !toSettings;
+  (toSettings ? closeSettingsButton : openSettingsButton).focus();
+}
+
+openSettingsButton.addEventListener("click", () => showPane("settings"));
+closeSettingsButton.addEventListener("click", () => showPane("focus"));
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && paneSettings.classList.contains("is-active")) {
+    event.preventDefault();
+    showPane("focus");
+  }
+});
+
+/* ── Actions ───────────────────────────────────────────────────────────── */
 
 enabledInput.addEventListener("change", () => {
   chrome.storage.sync.set({ enabled: enabledInput.checked });
-});
-
-sizeSelect.addEventListener("change", () => {
-  chrome.storage.sync.set({ size: sizeSelect.value });
 });
 
 resetButton.addEventListener("click", () => {
@@ -241,12 +378,6 @@ timerRefill.addEventListener("click", () => {
     breakStartedAt: null,
     snoozeUsedForSession: false,
     snoozeSessionRunning: false
-  });
-});
-
-brewOptions.forEach((option) => {
-  option.addEventListener("click", () => {
-    selectBrewMode(option.dataset.brewMode);
   });
 });
 
@@ -312,6 +443,8 @@ function completeFocusSession() {
     snoozeSessionRunning: false,
     focusStats
   });
+
+  syncTicker();
 }
 
 function normalizeSettings(source) {

@@ -8,97 +8,112 @@
   </head>
   <body>
     <main class="popup">
-      <header class="brand">
-        <img src="../assets/icons/icon-48.png" alt="" width="48" height="48">
-        <div>
-          <h1>CoffeeCat</h1>
-          <p>tab-side coffee buddy</p>
-        </div>
-      </header>
+      <!-- Both panes share one grid cell so the popup height is max(pane) and
+           never resizes when switching. See popup.css .panes / .pane. -->
+      <div id="panes" class="panes">
+        <section id="pane-focus" class="pane is-active" aria-label="Focus Coffee">
+          <header class="bar">
+            <h1>CoffeeCat</h1>
+            <button id="open-settings" class="icon-button" type="button" aria-label="Settings">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+              </svg>
+            </button>
+          </header>
 
-      <label class="toggle-row">
-        <span>Show CoffeeCat</span>
-        <input id="enabled" type="checkbox" role="switch">
-      </label>
+          <div class="hero">
+            <!-- Interior is clipped at y 6.5..61.5 (55 units tall). The liquid
+                 group translates down to drain; see CUP_INTERIOR_HEIGHT. -->
+            <svg class="cup" viewBox="0 0 74 68" width="74" height="68" aria-hidden="true">
+              <defs>
+                <clipPath id="cup-interior">
+                  <path d="M5.5 6.5 h53 v48.5 a6.5 6.5 0 0 1 -6.5 6.5 h-40 a6.5 6.5 0 0 1 -6.5 -6.5 z"></path>
+                </clipPath>
+                <linearGradient id="coffee-liquid" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#7A3B1B"></stop>
+                  <stop offset="1" stop-color="#32170D"></stop>
+                </linearGradient>
+              </defs>
 
-      <section class="focus-panel" aria-label="Focus Coffee timer">
-        <div class="focus-header">
-          <div>
-            <h2>Focus Coffee</h2>
-            <p id="timer-status">ready to brew</p>
+              <path class="cup-handle" d="M60 17 a13.5 13.5 0 0 1 0 26"></path>
+              <path class="cup-interior" d="M5.5 6.5 h53 v48.5 a6.5 6.5 0 0 1 -6.5 6.5 h-40 a6.5 6.5 0 0 1 -6.5 -6.5 z"></path>
+
+              <g clip-path="url(#cup-interior)">
+                <g id="coffee-progress-fill">
+                  <rect x="0" y="6.5" width="74" height="62" fill="url(#coffee-liquid)"></rect>
+                  <rect class="cup-crema" x="0" y="6.5" width="74" height="1.2"></rect>
+                </g>
+              </g>
+
+              <path class="cup-body" d="M4 5 h56 v50 a8 8 0 0 1 -8 8 h-40 a8 8 0 0 1 -8 -8 z"></path>
+            </svg>
+            <strong id="timer-display">25:00</strong>
+            <p id="timer-status" class="hero-caption" role="status">ready to brew</p>
           </div>
-          <strong id="timer-display">25:00</strong>
-        </div>
 
-        <div class="coffee-progress" aria-hidden="true">
-          <span class="popup-cup">
-            <span id="coffee-progress-fill"></span>
-          </span>
-        </div>
+          <div class="brew-block">
+            <div id="brew-deck" class="segmented no-anim" role="radiogroup" aria-label="Brew mode" style="--seg-count: 4; --seg-index: 0;">
+              <span class="segmented-thumb" aria-hidden="true"></span>
+              <button class="brew-option" type="button" role="radio" aria-checked="true" tabindex="0" data-brew-mode="espresso">Espresso</button>
+              <button class="brew-option" type="button" role="radio" aria-checked="false" tabindex="-1" data-brew-mode="slow-pour">Slow</button>
+              <button class="brew-option" type="button" role="radio" aria-checked="false" tabindex="-1" data-brew-mode="cold-brew">Cold</button>
+              <button class="brew-option" type="button" role="radio" aria-checked="false" tabindex="-1" data-brew-mode="decaf">Decaf</button>
+            </div>
 
-        <section id="brew-deck" class="brew-selector" aria-label="Brew mode">
-          <button class="brew-option" type="button" data-brew-mode="espresso" aria-pressed="true">
-            <strong>Espresso</strong>
-            <span>25m</span>
-          </button>
-          <button class="brew-option" type="button" data-brew-mode="slow-pour" aria-pressed="false">
-            <strong>Slow</strong>
-            <span>45m</span>
-          </button>
-          <button class="brew-option" type="button" data-brew-mode="cold-brew" aria-pressed="false">
-            <strong>Cold</strong>
-            <span>90m</span>
-          </button>
-          <button class="brew-option" type="button" data-brew-mode="decaf" aria-pressed="false">
-            <strong>Decaf</strong>
-            <span>15m</span>
-          </button>
-
-          <div class="brew-detail" aria-live="polite">
-            <strong id="brew-detail-title">Espresso Shot</strong>
-            <p id="brew-detail-copy">Fast, contained focus with Misu watching the door.</p>
-            <dl>
-              <div>
-                <dt>Break</dt>
-                <dd id="brew-detail-break">No break</dd>
-              </div>
-              <div>
-                <dt>Ambient</dt>
-                <dd id="brew-detail-ambient">Quiet cafe hum</dd>
-              </div>
-              <div>
-                <dt>Cat</dt>
-                <dd id="brew-detail-cat">Misu keeps watch</dd>
-              </div>
-            </dl>
+            <p id="brew-lock-note" class="lock-note" hidden>Refill to change brew</p>
+            <p id="brew-detail-copy" class="brew-copy">25 minutes, straight through.</p>
           </div>
+
+          <div class="actions">
+            <button id="timer-toggle" class="button-primary" type="button">Start</button>
+            <button id="timer-refill" class="button-plain" type="button" hidden>Refill</button>
+          </div>
+
+          <footer class="stats">
+            <span><strong id="stat-sessions">0</strong> sessions</span>
+            <span class="sep" aria-hidden="true">·</span>
+            <span><strong id="stat-minutes">0</strong> min</span>
+            <span class="sep" aria-hidden="true">·</span>
+            <span><strong id="stat-cups">0</strong> cups</span>
+          </footer>
         </section>
 
-        <div class="timer-actions">
-          <button id="timer-toggle" type="button">Start</button>
-          <button id="timer-refill" type="button" class="secondary">Refill</button>
-        </div>
-      </section>
+        <section id="pane-settings" class="pane" aria-label="Settings" inert>
+          <header class="bar">
+            <button id="close-settings" class="icon-button" type="button" aria-label="Back to Focus Coffee">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M15 18l-6-6 6-6"></path>
+              </svg>
+            </button>
+            <h2>Settings</h2>
+          </header>
 
-      <section class="stats-panel" aria-label="Local CoffeeCat stats">
-        <h2>Local stats</h2>
-        <div class="stat-grid">
-          <span><strong id="stat-sessions">0</strong> sessions</span>
-          <span><strong id="stat-minutes">0</strong> minutes</span>
-          <span><strong id="stat-cups">0</strong> cups</span>
-        </div>
-      </section>
+          <div class="rows">
+            <label class="row" for="enabled">
+              <span>Show CoffeeCat</span>
+              <input id="enabled" type="checkbox" role="switch">
+            </label>
 
-      <section class="control">
-        <label for="size">Size</label>
-        <select id="size">
-          <option value="small">Small</option>
-          <option value="medium">Medium</option>
-          <option value="large">Large</option>
-        </select>
-      </section>
+            <div class="row row-stack">
+              <span id="size-label">Size</span>
+              <div id="size-deck" class="segmented no-anim" role="radiogroup" aria-labelledby="size-label" style="--seg-count: 3; --seg-index: 1;">
+                <span class="segmented-thumb" aria-hidden="true"></span>
+                <button class="size-option" type="button" role="radio" aria-checked="false" tabindex="-1" data-size="small">Small</button>
+                <button class="size-option" type="button" role="radio" aria-checked="true" tabindex="0" data-size="medium">Medium</button>
+                <button class="size-option" type="button" role="radio" aria-checked="false" tabindex="-1" data-size="large">Large</button>
+              </div>
+            </div>
 
-      <button id="reset-position" type="button">Reset position</button>
+            <div class="row">
+              <span>Reset position</span>
+              <button id="reset-position" class="button-plain" type="button">Reset</button>
+            </div>
+          </div>
+
+          <p class="settings-note">CoffeeCat stays local. Nothing leaves your browser.</p>
+        </section>
+      </div>
     </main>
     <script src="popup.js"></script>
   </body>

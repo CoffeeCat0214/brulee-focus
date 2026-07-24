@@ -1,0 +1,19 @@
+# macOS Finder metadata. A bare pattern matches at every depth, so this
+# covers assets/.DS_Store and any future subdirectory too.
+.DS_Store
+
+# Chrome extension packaging artifacts.
+# *.pem is the private signing key produced by "Pack extension" — committing
+# it would let anyone publish updates that Chrome accepts as this extension.
+# Treat a leaked .pem as unrecoverable: the only fix is a new extension ID.
+*.pem
+*.crx
+
+# Packed builds for Web Store upload.
+*.zip
+
+# Python test artifacts (tests/ runs under python3 directly today, but this
+# costs nothing and pytest would otherwise litter the tree).
+__pycache__/
+*.py[cod]
+.pytest_cache/

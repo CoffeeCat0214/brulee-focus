@@ -1,4 +1,5 @@
 import json
+import re
 import struct
 import subprocess
 from pathlib import Path
@@ -111,11 +112,7 @@ def test_focus_timer_contract_is_wired_without_external_mug_assets():
         "timer-toggle",
         "timer-refill",
         "brew-deck",
-        "brew-detail-title",
         "brew-detail-copy",
-        "brew-detail-break",
-        "brew-detail-ambient",
-        "brew-detail-cat",
         "stat-sessions",
         "stat-minutes",
         "stat-cups",
@@ -130,6 +127,40 @@ def test_focus_timer_contract_is_wired_without_external_mug_assets():
     assert "selectBrewMode" in popup
     assert "breakOnComplete: true" in popup
     assert "breakOnComplete: true" in content
+
+
+def test_brew_modes_match_markup():
+    """Guards drift between BREW_MODES and the segmented control markup.
+
+    Replaces earlier assertions that pinned specific detail-element IDs into
+    the popup. Those pinned presentation -- including two fields (`ambient`,
+    `cat`) that described an ambient-audio system and named cats the extension
+    never had. This asserts a real contract instead: the modes the popup can
+    render and the modes the markup offers must be the same set.
+    """
+    popup = read_text("src/popup.js")
+    html = read_text("src/popup.html")
+
+    markup_modes = set(re.findall(r'data-brew-mode="([^"]+)"', html))
+    config_modes = set(re.findall(r'^\s*id: "([^"]+)",$', popup, re.MULTILINE))
+
+    assert markup_modes, "no brew modes found in popup.html"
+    assert markup_modes == config_modes, (
+        f"markup offers {sorted(markup_modes)} but BREW_MODES defines "
+        f"{sorted(config_modes)}"
+    )
+
+    # Every mode needs the copy the popup renders for it.
+    for mode in sorted(config_modes):
+        assert f'"{mode}"' in popup or f"{mode}:" in popup
+
+    # Ambient audio does not exist -- playPurr() is the only sound path.
+    # Keep the UI from re-acquiring claims the code cannot back.
+    content = read_text("src/content.js")
+    assert "ambient" not in popup.lower()
+    for invented in ("misu", "brulee", "cafe hum", "rain sounds"):
+        assert invented not in popup.lower(), f"unimplemented claim in popup: {invented}"
+        assert invented not in content.lower()
 
 
 def test_static_site_documents_v2_launch():
