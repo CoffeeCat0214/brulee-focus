@@ -63,6 +63,16 @@
     large: 116
   };
 
+  // Covers the purr bubble's gap and tail, which sit outside its own box.
+  const BUBBLE_EDGE_SLACK_PX = 8;
+
+  // Emitted by tools/render_mug.py and loaded as a content script ahead of this
+  // one (see manifest). It is the single source of truth for where the liquid
+  // sits inside the glass and how far it travels -- the popup and the marketing
+  // site read the same object, which is what stops the three surfaces drifting
+  // into three different cups again.
+  const { FILL_WINDOW, DRAIN_RANGE } = globalThis.COFFEECAT_MUG;
+
   let settings = { ...DEFAULT_SETTINGS };
   let root = null;
   let breakRoot = null;
@@ -236,19 +246,31 @@
     cat = document.createElement("button");
     cat.className = "coffee-cat";
     cat.type = "button";
-    cat.title = "CoffeeCat";
+    // No `title`: the native tooltip fades in over the same spot the purr
+    // bubble occupies, in the host OS's styling rather than ours. aria-label
+    // already gives the button its accessible name.
     cat.setAttribute("aria-label", "CoffeeCat browser buddy");
     const buddyImage = getExtensionUrl("assets/coffeecat-buddy.png");
+    const mugBack = getExtensionUrl("assets/mug/mug-back.png");
+    const mugFill = getExtensionUrl("assets/mug/mug-fill.png");
+    const mugFront = getExtensionUrl("assets/mug/mug-front.png");
+    const mugSteam = getExtensionUrl("assets/mug/mug-steam.png");
+
+    // Layer order matters: the liquid sits between the vessel's far wall and
+    // its near wall, which is what makes it read as being *inside* the glass
+    // rather than painted on top of it.
     cat.innerHTML = `
       <img class="cat-art" src="${buddyImage}" alt="">
       <span class="coffee-meter" aria-hidden="true">
-        <span class="coffee-steam steam-a"></span>
-        <span class="coffee-steam steam-b"></span>
-        <span class="glass-mug">
-          <span class="coffee-fill"></span>
+        <img class="mug-layer mug-back" src="${mugBack}" alt="">
+        <span class="mug-window">
+          <img class="mug-liquid" src="${mugFill}" alt="">
         </span>
+        <img class="mug-layer mug-front" src="${mugFront}" alt="">
+        <img class="mug-steam steam-a" src="${mugSteam}" alt="">
+        <img class="mug-steam steam-b" src="${mugSteam}" alt="">
       </span>
-      <span class="purr-bubble">prr</span>
+      <span class="purr-bubble" aria-hidden="true">prr</span>
     `;
 
     cat.addEventListener("pointerdown", startDrag);
@@ -264,13 +286,30 @@
       }
 
       .coffee-cat {
-        --cat-scale: 1;
-        --fur: #7a4b31;
-        --fur-dark: #4a2b1d;
-        --cream: #ffe2b8;
-        --coffee: #3a2117;
-        --cup: #f5f1e8;
-        --accent: #d97b40;
+        /* Sampled from the buddy art itself (see tools/render_mug.py). The
+           previous set declared six tokens, used one, and hardcoded every mug
+           colour to hex that had drifted away from the illustration -- notably
+           a flat brown edge where the cat's is actually plum. */
+        --cat-edge: #470928;
+        --cat-edge-a: 71, 9, 40;
+        --cat-cream: #fce0c1;
+        --cat-fur: #e89c65;
+
+        /* Fallback only. applySettings() overwrites this on the host element
+           with size / SIZE_MAP.medium, and it inherits through the shadow
+           boundary -- the "all: initial" above does not touch custom properties.
+           Declaring it here means a failure to inherit degrades to medium
+           sizing rather than invalidating every calc() that reads it. */
+        --cat-unit: 1;
+
+        /* Borrowed verbatim from popup.css, which is already built on the HIG:
+           system-ui resolves to SF on macOS (SF Pro itself is not
+           bundleable), and the curve is Apple's standard ease. */
+        --bubble-font: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", sans-serif;
+        --bubble-ease: cubic-bezier(0.32, 0.72, 0, 1);
+        --bubble-surface: #fffdf9;
+        --bubble-label: #241812;
+        --bubble-shadow-a: 36, 24, 18;
         appearance: none;
         position: relative;
         display: block;
@@ -284,6 +323,17 @@
         transform-origin: center bottom;
         animation: bob 4.8s steps(2, end) infinite;
         transition: transform 160ms ease, filter 160ms ease;
+      }
+
+      /* Follows the OS appearance, not the host page's -- a content script has
+         no reliable read on an arbitrary site's theme. The sprite itself stays
+         cream-and-orange either way. */
+      @media (prefers-color-scheme: dark) {
+        .coffee-cat {
+          --bubble-surface: #2a2724;
+          --bubble-label: #f5efe7;
+          --bubble-shadow-a: 0, 0, 0;
+        }
       }
 
       .coffee-cat:active {
@@ -302,8 +352,8 @@
         pointer-events: none;
         image-rendering: pixelated;
         filter:
-          drop-shadow(0 8px 0 rgba(74, 43, 29, 0.12))
-          drop-shadow(0 10px 18px rgba(74, 43, 29, 0.22));
+          drop-shadow(0 8px 0 rgba(var(--cat-edge-a), 0.12))
+          drop-shadow(0 10px 18px rgba(var(--cat-edge-a), 0.22));
         transform-origin: center bottom;
       }
 
@@ -315,154 +365,199 @@
         animation: purr 90ms steps(2, end) infinite;
       }
 
-      .coffee-cat.is-purring .purr-bubble {
-        opacity: 1;
-        transform: translateY(-10px);
-      }
-
       .coffee-cat.is-napping .cat-art {
         transform: translateY(2px) scaleY(0.98);
         filter:
-          drop-shadow(0 8px 0 rgba(74, 43, 29, 0.12))
-          drop-shadow(0 10px 18px rgba(74, 43, 29, 0.18))
+          drop-shadow(0 8px 0 rgba(var(--cat-edge-a), 0.12))
+          drop-shadow(0 10px 18px rgba(var(--cat-edge-a), 0.18))
           saturate(0.92);
       }
 
+      /* The mug is four sprite layers rendered by tools/render_mug.py, all on
+         the same square canvas at the same origin, so they register by simply
+         being stacked. Geometry numbers come from the generator -- never
+         hand-tune them here or the clip window drifts off the glass. */
       .coffee-meter {
         position: absolute;
-        right: -16%;
-        bottom: 3%;
+        right: -6%;
+        bottom: 1%;
         z-index: 3;
-        width: 43%;
-        height: 43%;
+        width: 44%;
+        height: 44%;
         pointer-events: none;
+      }
+
+      .mug-layer,
+      .mug-liquid,
+      .mug-steam {
+        position: absolute;
+        display: block;
+        pointer-events: none;
+        /* Same nearest-neighbour downscale the cat gets. This is what puts the
+           two objects in the same medium: identical sampling, identical
+           aliasing character at every size. */
         image-rendering: pixelated;
       }
 
-      .glass-mug {
-        position: absolute;
-        left: 6%;
-        right: 23%;
-        bottom: 0;
-        height: 66%;
-        border: 3px solid var(--fur-dark);
-        border-top-width: 4px;
-        border-radius: 5px 5px 8px 8px;
-        background:
-          linear-gradient(#fffdf8, #fff3e4),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.78) 0 13%, transparent 13%),
-          linear-gradient(90deg, transparent 0 73%, rgba(170, 205, 212, 0.42) 73% 86%, transparent 86%),
-          rgba(255, 253, 248, 0.68);
-        background-blend-mode: normal, screen, normal, normal;
-        box-sizing: border-box;
-        filter:
-          drop-shadow(0 3px 0 rgba(74, 43, 29, 0.12))
-          drop-shadow(0 5px 8px rgba(74, 43, 29, 0.16));
+      .mug-layer {
+        inset: 0;
+        width: 100%;
+        height: 100%;
       }
 
-      .glass-mug::before {
-        content: "";
+      .mug-window {
         position: absolute;
-        left: 9%;
-        right: 9%;
-        top: 9%;
-        height: 7%;
-        border-top: 2px solid rgba(74, 43, 29, 0.35);
-        border-radius: 50%;
-        z-index: 2;
+        left: ${FILL_WINDOW.x}%;
+        top: ${FILL_WINDOW.y}%;
+        width: ${FILL_WINDOW.width}%;
+        height: ${FILL_WINDOW.height}%;
+        overflow: hidden;
+        /* The cavity floor is a half-ellipse and the liquid column is a
+           straight rectangle, so the rounded bottom has to come from the clip,
+           which stays put while the column slides through it. */
+        border-radius: 0 0 50% 50% / 0 0 ${FILL_WINDOW.bottomRadius}% ${FILL_WINDOW.bottomRadius}%;
       }
 
-      .glass-mug::after {
-        content: "";
-        position: absolute;
-        right: -46%;
-        top: 25%;
-        width: 44%;
-        height: 45%;
-        border: 3px solid var(--fur-dark);
-        border-left: 0;
-        border-radius: 0 8px 8px 0;
-        box-sizing: border-box;
-      }
-
-      .coffee-fill {
-        position: absolute;
-        left: 7%;
-        right: 7%;
-        bottom: 7%;
-        height: 78%;
-        border-radius: 3px 3px 6px 6px;
-        background:
-          linear-gradient(90deg, rgba(255, 255, 255, 0.26) 0 16%, transparent 16%),
-          linear-gradient(rgba(184, 101, 42, 0.34), rgba(184, 101, 42, 0) 12%),
-          linear-gradient(#6f3518, #32170d);
-        box-shadow:
-          inset 4px 0 0 rgba(255, 255, 255, 0.22),
-          inset -2px 0 0 rgba(30, 14, 8, 0.24),
-          0 -1px 0 rgba(255, 190, 116, 0.42);
-        transform: scaleY(1);
-        transform-origin: center bottom;
+      .mug-liquid {
+        /* Drawn on the full mug canvas, so it is sized back up to the meter box
+           and offset to cancel the window's own inset. That keeps it in
+           register with the vessel at every fill level. */
+        width: ${(10000 / FILL_WINDOW.width).toFixed(4)}%;
+        height: ${(10000 / FILL_WINDOW.height).toFixed(4)}%;
+        left: ${(-FILL_WINDOW.x * 100 / FILL_WINDOW.width).toFixed(4)}%;
+        top: ${(-FILL_WINDOW.y * 100 / FILL_WINDOW.height).toFixed(4)}%;
+        transform: translateY(0);
         transition: transform 220ms linear, opacity 180ms ease;
       }
 
-      .coffee-fill::before {
-        content: "";
-        position: absolute;
-        left: 8%;
-        right: 8%;
-        top: 0;
-        height: 1px;
-        border-radius: 999px;
-        background: rgba(255, 206, 143, 0.5);
-        box-shadow: 0 1px 0 rgba(45, 21, 12, 0.45);
-      }
-
-      .coffee-steam {
-        position: absolute;
-        bottom: 67%;
-        width: 4px;
-        height: 22%;
-        border-left: 3px solid rgba(217, 123, 64, 0.72);
-        opacity: 0.82;
-        animation: steam 2.8s steps(3, end) infinite;
+      .mug-steam {
+        width: 30%;
+        height: 44%;
+        bottom: 72%;
+        opacity: 0;
+        animation: steam 3.4s ease-out infinite;
       }
 
       .steam-a {
-        left: 28%;
+        left: 24%;
       }
 
       .steam-b {
-        left: 52%;
-        animation-delay: 650ms;
+        left: 40%;
+        animation-delay: 1400ms;
+        animation-duration: 3.9s;
       }
 
-      .coffee-meter.is-paused .coffee-steam,
-      .coffee-meter.is-empty .coffee-steam {
+      /* "animation: none", not "animation-play-state: paused". A paused
+         animation still applies its current keyframe, and the keyframes drive
+         opacity -- so pausing would freeze the wisp visible over the rim
+         instead of hiding it. Removing the animation lets the base opacity
+         below actually win. */
+      .coffee-meter.is-paused .mug-steam,
+      .coffee-meter.is-empty .mug-steam {
+        animation: none;
         opacity: 0;
       }
 
-      .coffee-meter.is-empty .coffee-fill {
+      .coffee-meter.is-empty .mug-liquid {
         opacity: 0.35;
       }
 
-      .coffee-meter.is-paused .glass-mug {
-        opacity: 0.78;
+      .coffee-meter.is-paused {
+        opacity: 0.82;
       }
 
+      /* The sprite fills its box edge to edge -- head top at ~2%, mug at the
+         bottom right -- so there is no interior space for a bubble. It lives
+         entirely above the host box and points back down into the notch
+         between the ears. Centred, so a ~30px bubble inside an 88px box
+         overflows on no horizontal edge; only the top needs handling, which
+         sipAndPurr() does with .bubble-below.
+
+         Every metric is scaled by --cat-unit. Absolute pixels would only be
+         correct at one of the three SIZE_MAP sizes. */
       .purr-bubble {
         position: absolute;
-        left: 5%;
-        top: 3%;
-        padding: 3px 5px;
-        border: 3px solid var(--fur-dark);
-        border-radius: 5px;
-        background: #fff8ef;
-        color: var(--fur-dark);
-        font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        letter-spacing: 0;
+        left: 50%;
+        bottom: 100%;
+        z-index: 4;
+        margin-bottom: calc(4px * var(--cat-unit));
+        padding: calc(4px * var(--cat-unit)) calc(8px * var(--cat-unit));
+        border-radius: calc(8px * var(--cat-unit));
+        background: var(--bubble-surface);
+        color: var(--bubble-label);
+        /* Everything else scales freely, but type has a legibility floor:
+           unclamped, the small cat would set this at 8px. */
+        font: 600 max(9px, calc(11px * var(--cat-unit)))/1.2 var(--bubble-font);
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+        -webkit-font-smoothing: antialiased;
+        /* One filter over the element *and* its ::before tail, so the two cast
+           a single continuous shadow: filter resolves against the composited
+           subtree, whereas a box-shadow on each part leaves a visible seam
+           along the joint where the two shadows overlap. The third, tight
+           drop-shadow stands in for a hairline border -- an actual border
+           would be drawn on the body only and stop dead at the tail. */
+        filter:
+          drop-shadow(0 calc(1px * var(--cat-unit)) calc(2px * var(--cat-unit)) rgba(var(--bubble-shadow-a), 0.16))
+          drop-shadow(0 calc(5px * var(--cat-unit)) calc(12px * var(--cat-unit)) rgba(var(--bubble-shadow-a), 0.16))
+          drop-shadow(0 0 0.5px rgba(var(--bubble-shadow-a), 0.16));
         opacity: 0;
-        transform: translateY(0);
-        transition: opacity 120ms ease, transform 260ms steps(3, end);
+        transform: translateX(-50%) translateY(calc(2px * var(--cat-unit))) scale(0.92);
+        transform-origin: bottom center;
+        /* Dismissal is quicker than arrival, per the platform convention;
+           .is-purring below overrides the duration on the way in. */
+        transition: opacity 160ms var(--bubble-ease), transform 160ms var(--bubble-ease);
+      }
+
+      /* Clipped triangle rather than the usual 45deg-rotated square: a square
+         can only ever produce a 90deg tip, which at this size hangs off the
+         bubble like a drip. Decoupling width from height gives the shallow,
+         wide tail the platform actually uses. Same fill, no shadow of its own
+         -- the parent's filter covers it. */
+      .purr-bubble::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        width: calc(11px * var(--cat-unit));
+        height: calc(5px * var(--cat-unit));
+        background: var(--bubble-surface);
+        /* Overlaps the body's rounded bottom edge by a hair so the join is
+           solid rather than pinched. */
+        margin-top: -1px;
+        clip-path: polygon(0 0, 100% 0, 50% 100%);
+        transform: translateX(-50%);
+      }
+
+      .coffee-cat.is-purring .purr-bubble {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+        transition-duration: 260ms;
+      }
+
+      /* Flipped under the cat when it is parked too near the top of the
+         viewport. Must stay after the .is-purring rule above: both are three
+         classes deep, so source order settles it. */
+      .coffee-cat.bubble-below .purr-bubble {
+        top: 100%;
+        bottom: auto;
+        margin-top: calc(4px * var(--cat-unit));
+        margin-bottom: 0;
+        transform: translateX(-50%) translateY(calc(-2px * var(--cat-unit))) scale(0.92);
+        transform-origin: top center;
+      }
+
+      .coffee-cat.bubble-below .purr-bubble::before {
+        top: auto;
+        bottom: 100%;
+        margin-top: 0;
+        margin-bottom: -1px;
+        clip-path: polygon(50% 0, 100% 100%, 0 100%);
+      }
+
+      .coffee-cat.bubble-below.is-purring .purr-bubble {
+        transform: translateX(-50%) translateY(0) scale(1);
       }
 
       @keyframes bob {
@@ -481,16 +576,43 @@
       }
 
       @keyframes steam {
-        0% { transform: translateY(6px); opacity: 0; }
-        30% { opacity: 0.7; }
-        100% { transform: translateY(-8px); opacity: 0; }
+        0% { transform: translateY(12%) scaleX(0.85); opacity: 0; }
+        25% { opacity: 0.75; }
+        100% { transform: translateY(-34%) scaleX(1.15); opacity: 0; }
       }
 
       @media (prefers-reduced-motion: reduce) {
         .coffee-cat,
         .cat-art,
-        .coffee-cat.is-purring .cat-art {
+        .coffee-cat.is-purring .cat-art,
+        .mug-steam {
           animation: none;
+        }
+
+        /* The steam sprite is only ever visible mid-animation, so killing the
+           animation has to also hide it -- otherwise it freezes on frame zero
+           as a static smudge over the rim. */
+        .mug-steam {
+          opacity: 0;
+        }
+
+        /* The drain is information, not decoration: it still moves, just
+           without the easing. */
+        .mug-liquid {
+          transition: none;
+        }
+
+        /* The bubble still has to appear -- it is the feedback for the click,
+           not decoration -- it just must not travel or scale. Each selector
+           here matches its counterpart above at equal specificity and wins on
+           source order, which is why the flipped variants are spelled out
+           rather than folded into one. */
+        .purr-bubble,
+        .coffee-cat.is-purring .purr-bubble,
+        .coffee-cat.bubble-below .purr-bubble,
+        .coffee-cat.bubble-below.is-purring .purr-bubble {
+          transform: translateX(-50%);
+          transition: opacity 100ms linear;
         }
       }
     `;
@@ -503,6 +625,11 @@
     const size = SIZE_MAP[settings.size] || SIZE_MAP.medium;
     root.style.width = `${size}px`;
     root.style.height = `${size}px`;
+    // Every purr-bubble metric is calc()'d off this. SIZE_MAP is already the
+    // one place a size setting becomes pixels, so the multiplier is derived
+    // here too -- computing it anywhere else gives the bubble a second source
+    // of truth that can drift out of step with the box it hangs off.
+    root.style.setProperty("--cat-unit", (size / SIZE_MAP.medium).toFixed(4));
 
     if (settings.position && Number.isFinite(settings.position.x) && Number.isFinite(settings.position.y)) {
       moveTo(settings.position.x, settings.position.y);
@@ -525,14 +652,19 @@
 
   function updateCoffeeMeter() {
     const meter = cat?.querySelector(".coffee-meter");
-    const fillElement = cat?.querySelector(".coffee-fill");
+    const fillElement = cat?.querySelector(".mug-liquid");
     if (!meter || !fillElement) return;
 
     const duration = getValidDuration(settings.coffeeDurationMs);
     const remaining = getCoffeeRemaining(settings);
     const fill = Math.max(0, Math.min(1, remaining / duration));
 
-    fillElement.style.transform = `scaleY(${fill.toFixed(4)})`;
+    // Translate, never scale. The liquid sprite carries its own crema band and
+    // meniscus at a fixed thickness; scaling the layer squashes both as the cup
+    // drains, which is what the old scaleY() did here. Sliding a full-height
+    // column behind a fixed clip window keeps the surface identical at every
+    // level. popup.js does the same thing for the same reason.
+    fillElement.style.transform = `translateY(${((1 - fill) * DRAIN_RANGE).toFixed(4)}%)`;
     meter.classList.toggle("is-empty", remaining <= 0);
     meter.classList.toggle("is-paused", !settings.coffeeRunning);
 
@@ -1018,6 +1150,7 @@
     if (!cat || dragState?.moved) return;
 
     cat.classList.remove("is-napping");
+    cat.classList.toggle("bubble-below", !hasRoomForBubbleAbove());
     cat.classList.add("is-sipping");
     cat.classList.add("is-purring");
     playPurr();
@@ -1027,6 +1160,16 @@
     window.setTimeout(() => {
       cat?.classList.remove("is-purring");
     }, 1200);
+  }
+
+  // The bubble renders entirely outside the host box, and moveTo() clamps the
+  // root to the viewport rather than the bubble -- so a cat parked against the
+  // top edge would otherwise speak off-screen. Measured rather than assumed
+  // because the height scales with --cat-unit.
+  function hasRoomForBubbleAbove() {
+    const bubble = cat?.querySelector(".purr-bubble");
+    if (!bubble || !root) return true;
+    return root.getBoundingClientRect().top >= bubble.offsetHeight + BUBBLE_EDGE_SLACK_PX;
   }
 
   function playPurr() {

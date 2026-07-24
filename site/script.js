@@ -1,11 +1,32 @@
+const { FILL_WINDOW, DRAIN_RANGE } = globalThis.COFFEECAT_MUG;
+
+const demoCup = document.querySelector(".demo-cup");
 const demoFill = document.getElementById("demo-fill");
+
+// Place the clip window from the generated geometry rather than hand-tuned
+// percentages. The liquid sprite is drawn on the full mug canvas, so it is
+// sized back up to the cup box and offset to cancel the window's own inset --
+// the same arithmetic as the extension's content script.
+demoCup.style.setProperty("--win-x", `${FILL_WINDOW.x}%`);
+demoCup.style.setProperty("--win-y", `${FILL_WINDOW.y}%`);
+demoCup.style.setProperty("--win-w", `${FILL_WINDOW.width}%`);
+demoCup.style.setProperty("--win-h", `${FILL_WINDOW.height}%`);
+demoCup.style.setProperty("--win-r", `${FILL_WINDOW.bottomRadius}%`);
+demoCup.style.setProperty("--liq-w", `${10000 / FILL_WINDOW.width}%`);
+demoCup.style.setProperty("--liq-h", `${10000 / FILL_WINDOW.height}%`);
+demoCup.style.setProperty("--liq-x", `${(-FILL_WINDOW.x * 100) / FILL_WINDOW.width}%`);
+demoCup.style.setProperty("--liq-y", `${(-FILL_WINDOW.y * 100) / FILL_WINDOW.height}%`);
+
 let startedAt = Date.now();
 const cycleMs = 9000;
 
 function renderDemoCup() {
   const elapsed = (Date.now() - startedAt) % cycleMs;
   const progress = 1 - elapsed / cycleMs;
-  demoFill.style.transform = `scaleY(${Math.max(0.04, progress).toFixed(4)})`;
+  const fill = Math.max(0.04, progress);
+  // Translate, never scale -- the sprite carries its own surface ellipse and
+  // crema at a fixed thickness. Matches content.js and popup.js.
+  demoFill.style.transform = `translateY(${((1 - fill) * DRAIN_RANGE).toFixed(4)}%)`;
   window.requestAnimationFrame(renderDemoCup);
 }
 

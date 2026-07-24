@@ -179,50 +179,46 @@ a.secondary {
   filter: drop-shadow(0 18px 0 rgba(36, 24, 18, 0.18));
 }
 
+/* The demo cup is the extension's own sprite, not a lookalike drawn in CSS.
+   The --win-* / --liq-* values are written by script.js from the generated
+   COFFEECAT_MUG geometry, so this page cannot drift away from the product the
+   way the old hand-tuned box did. */
 .demo-cup {
   position: absolute;
-  right: -5%;
-  bottom: 5%;
-  width: 33%;
-  /* aspect-ratio, not height:%, so the mug's shape is independent of the
-     buddy art's proportions — a percentage height resolved against the
-     image-derived container and silently rescaled on every art swap. */
-  aspect-ratio: 5 / 6;
-  border: 6px solid #4a2b1d;
-  border-radius: 12px 12px 18px 18px;
-  background: linear-gradient(#fffdf8, #fff3e4);
+  right: -8%;
+  bottom: 4%;
+  width: 34%;
+  /* The sprite canvas is square and every layer shares its origin. */
+  aspect-ratio: 1;
 }
 
-.demo-cup::after {
-  content: "";
+.demo-cup .mug-layer {
   position: absolute;
-  right: -38%;
-  top: 27%;
-  width: 38%;
-  height: 39%;
-  border: 6px solid #4a2b1d;
-  border-left: 0;
-  border-radius: 0 18px 18px 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
 }
 
-#demo-fill {
+.demo-cup .mug-window {
   position: absolute;
-  left: 9%;
-  right: 9%;
-  bottom: 8%;
-  height: 76%;
-  border-radius: 6px 6px 12px 12px;
-  background: linear-gradient(#6f3518, #32170d);
-  transform: scaleY(1);
-  transform-origin: center bottom;
+  left: var(--win-x);
+  top: var(--win-y);
+  width: var(--win-w);
+  height: var(--win-h);
+  overflow: hidden;
+  border-radius: 0 0 50% 50% / 0 0 var(--win-r) var(--win-r);
 }
 
-#demo-fill::before {
-  content: "";
+.demo-cup .mug-liquid {
   position: absolute;
-  inset: 0 10% auto;
-  height: 2px;
-  background: rgba(255, 206, 143, 0.54);
+  display: block;
+  image-rendering: pixelated;
+  width: var(--liq-w);
+  height: var(--liq-h);
+  left: var(--liq-x);
+  top: var(--liq-y);
 }
 
 .band {

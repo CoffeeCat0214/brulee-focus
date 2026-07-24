@@ -44,7 +44,9 @@
   --on-accent: #ffffff;
   --accent-label: #8f4a22; /* 6.5:1 on --bg */
 
-  --cup-stroke: #4a2b1d;
+  /* The buddy art's own darkest edge, sampled from the illustration. It used to
+     be #4a2b1d, a flat brown that belonged to no part of the cat. */
+  --cup-stroke: #470928;
   --cup-body: #fff8ef;
   --shadow-thumb: 0 1px 3px rgba(36, 24, 18, 0.16), 0 0 0 0.5px rgba(36, 24, 18, 0.05);
   --cup-shadow: 0 5px 10px rgba(74, 43, 29, 0.14);
@@ -193,10 +195,12 @@ dd {
   margin-top: var(--s5);
 }
 
+/* Square viewBox now (the generator emits 0 0 100 100), sized so the cup lands
+   at roughly the same optical height as the old 68px one. */
 .cup {
-  width: 68px;
+  width: 84px;
   height: auto;
-  aspect-ratio: 74 / 68;
+  aspect-ratio: 1;
   margin-bottom: var(--s2);
   overflow: visible;
   filter: drop-shadow(var(--cup-shadow));
@@ -206,7 +210,7 @@ dd {
 .cup-handle {
   fill: none;
   stroke: var(--cup-stroke);
-  stroke-width: 2.5;
+  stroke-width: 2.8;
   stroke-linejoin: round;
 }
 
@@ -214,16 +218,23 @@ dd {
   stroke-linecap: round;
 }
 
-.cup-interior {
+/* Filled copy of the body path, sitting between the handle and the liquid. It
+   is what makes the wall thickness visible and what occludes the handle join. */
+.cup-wall {
   fill: var(--cup-body);
 }
 
+/* The liquid's top face plus its meniscus, matching COFFEE_SURFACE and CREMA in
+   tools/render_mug.py. Opaque: at 0.55 alpha the ellipse's upper half sat over
+   the light cup interior and washed out to nothing. */
 .cup-crema {
-  fill: rgba(255, 206, 143, 0.55);
+  fill: #8a4a22;
+  stroke: rgba(255, 206, 143, 0.55);
+  stroke-width: 1.6;
 }
 
-/* Translate, never scale: the crema rect rides the surface at a constant
-   1.2 units instead of being squashed by the transform that moves it. */
+/* Translate, never scale: the liquid's surface ellipse rides along at a
+   constant 7.3 units instead of being squashed by the transform that moves it. */
 #coffee-progress-fill {
   transition: transform 220ms linear, opacity 180ms ease;
 }

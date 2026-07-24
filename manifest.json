@@ -25,13 +25,19 @@
     {
       "matches": ["http://*/*", "https://*/*"],
       "css": ["src/content.css"],
-      "js": ["src/content.js"],
+      "js": ["src/mug-geometry.js", "src/content.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["assets/coffeecat-buddy.png"],
+      "resources": [
+        "assets/coffeecat-buddy.png",
+        "assets/mug/mug-back.png",
+        "assets/mug/mug-fill.png",
+        "assets/mug/mug-front.png",
+        "assets/mug/mug-steam.png"
+      ],
       "matches": ["http://*/*", "https://*/*"]
     }
   ]

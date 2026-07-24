@@ -23,30 +23,45 @@
           </header>
 
           <div class="hero">
-            <!-- Interior is clipped at y 6.5..61.5 (55 units tall). The liquid
-                 group translates down to drain; see CUP_INTERIOR_HEIGHT. -->
-            <svg class="cup" viewBox="0 0 74 68" width="74" height="68" aria-hidden="true">
+            <!-- Geometry mirrors assets/mug/*.png exactly: both come from
+                 tools/render_mug.py, which emits these path strings alongside
+                 the sprite (see COFFEECAT_MUG.SVG in src/mug-geometry.js).
+                 Vector here rather than the sprite because this popup rethemes
+                 for dark mode and a raster cup cannot.
+                 Do not hand-edit the path data -- re-run the generator.
+                 The liquid group translates down by (1 - fill) * 54.8 to drain;
+                 see CUP_INTERIOR_HEIGHT in popup.js. -->
+            <svg class="cup" viewBox="0 0 100 100" aria-hidden="true">
               <defs>
                 <clipPath id="cup-interior">
-                  <path d="M5.5 6.5 h53 v48.5 a6.5 6.5 0 0 1 -6.5 6.5 h-40 a6.5 6.5 0 0 1 -6.5 -6.5 z"></path>
+                  <path d="M15.4 23.5 A27.6 7.3 0 0 1 70.6 23.5 L70.6 80 A27.6 7.3 0 0 1 15.4 80 Z"></path>
                 </clipPath>
                 <linearGradient id="coffee-liquid" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0" stop-color="#7A3B1B"></stop>
+                  <stop offset="0" stop-color="#6F3518"></stop>
                   <stop offset="1" stop-color="#32170D"></stop>
                 </linearGradient>
               </defs>
 
-              <path class="cup-handle" d="M60 17 a13.5 13.5 0 0 1 0 26"></path>
-              <path class="cup-interior" d="M5.5 6.5 h53 v48.5 a6.5 6.5 0 0 1 -6.5 6.5 h-40 a6.5 6.5 0 0 1 -6.5 -6.5 z"></path>
+              <!-- Handle first, then the wall FILLED over it. The handle's arc
+                   meets the body with a horizontal tangent, so its stroke ends
+                   in ticks that would otherwise sit on top of the coffee; the
+                   sprite hides that join behind its filled body and the vector
+                   cup has to do the same. The body path is therefore drawn
+                   twice: filled here, stroked last. -->
+              <path class="cup-handle" d="M69.5 36.95 A14.8 14.8 0 0 1 69.5 66.55"></path>
+              <path class="cup-wall" d="M12 23.5 A31 8.2 0 0 1 74 23.5 L74 80 A31 8.2 0 0 1 12 80 Z"></path>
 
               <g clip-path="url(#cup-interior)">
                 <g id="coffee-progress-fill">
-                  <rect x="0" y="6.5" width="74" height="62" fill="url(#coffee-liquid)"></rect>
-                  <rect class="cup-crema" x="0" y="6.5" width="74" height="1.2"></rect>
+                  <rect x="0" y="24.7" width="100" height="90" fill="url(#coffee-liquid)"></rect>
+                  <!-- The liquid's top face, seen at a glancing angle. An
+                       ellipse rather than a flat bar so the vector cup reads
+                       as the same object as the sprite. -->
+                  <ellipse class="cup-crema" cx="43" cy="24.7" rx="27.6" ry="7.3"></ellipse>
                 </g>
               </g>
 
-              <path class="cup-body" d="M4 5 h56 v50 a8 8 0 0 1 -8 8 h-40 a8 8 0 0 1 -8 -8 z"></path>
+              <path class="cup-body" d="M12 23.5 A31 8.2 0 0 1 74 23.5 L74 80 A31 8.2 0 0 1 12 80 Z"></path>
             </svg>
             <strong id="timer-display">25:00</strong>
             <p id="timer-status" class="hero-caption" role="status">ready to brew</p>
@@ -115,6 +130,7 @@
         </section>
       </div>
     </main>
+    <script src="mug-geometry.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

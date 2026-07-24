@@ -34,8 +34,14 @@
             </div>
             <div class="demo-cat">
               <img src="../assets/coffeecat-buddy.png" alt="CoffeeCat pixel browser buddy">
+              <!-- Same four sprite layers the extension overlays, stacked in
+                   the same order. See tools/render_mug.py. -->
               <span class="demo-cup" aria-hidden="true">
-                <span id="demo-fill"></span>
+                <img class="mug-layer" src="../assets/mug/mug-back.png" alt="">
+                <span class="mug-window">
+                  <img id="demo-fill" class="mug-liquid" src="../assets/mug/mug-fill.png" alt="">
+                </span>
+                <img class="mug-layer" src="../assets/mug/mug-front.png" alt="">
               </span>
             </div>
           </div>
@@ -87,6 +93,7 @@
         </ol>
       </section>
     </main>
+    <script src="../src/mug-geometry.js"></script>
     <script src="script.js"></script>
   </body>
 </html>

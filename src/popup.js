@@ -24,9 +24,13 @@ const DEFAULT_SETTINGS = {
 };
 const COFFEE_RENDER_INTERVAL_MS = 250;
 const SIZES = ["small", "medium", "large"];
-// Height of the cup's clipped interior in SVG user units. The liquid group
-// translates down by (1 - progress) * this to drain.
-const CUP_INTERIOR_HEIGHT = 55;
+// Liquid travel in SVG user units. The liquid group translates down by
+// (1 - progress) * this to drain.
+//
+// Sourced from the generator rather than typed here: the same number sets the
+// sprite's drain range in the content script, and a literal in this file would
+// silently desync from the cup's actual geometry the first time it changed.
+const CUP_INTERIOR_HEIGHT = globalThis.COFFEECAT_MUG.SVG.interiorHeight;
 
 /* Every string here must be checkable against the code in this repo. Earlier
    versions carried fields describing a per-mode background-audio system and
