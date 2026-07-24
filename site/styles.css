@@ -1,8 +1,123 @@
+/* CoffeeCat marketing site.
+
+   Every value the site uses lives in the token block below. Nothing after it
+   should contain a raw hex literal.
+
+   The palette is not invented. It is the CAT_RAMP from tools/render_mug.py,
+   which derives its stops by decoding the buddy illustration and averaging
+   opaque pixels bucketed by luminance. That file also records why the old site
+   looked pasted-on: it was outlined in #4a2b1d, a flat brown, when the cat's
+   own darkest edge is the plum #470928. Wrong hue family. Every outline here
+   is the plum.
+
+   Visual direction: the heavy sticker outlines and hard offset shadows stay --
+   they are the site's signature -- but they now sit on a strict 4pt grid with a
+   real modular type scale, which is what separates "chunky" from "unfinished". */
+
 :root {
+  /* Type. Inter used to be named here and never loaded, so every visitor got
+     the fallback anyway. Matching the extension's stack (src/popup.css:12)
+     removes the lie and costs zero bytes. */
+  --font: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* 4pt grid, extended past the popup's --s6 for page-scale rhythm. */
+  --s1: 4px;   --s2: 8px;   --s3: 12px;  --s4: 16px;
+  --s5: 20px;  --s6: 24px;  --s7: 32px;  --s8: 48px;
+  --s9: 64px;  --s10: 96px; --s11: 128px;
+
+  /* --- Brand constants: sampled from CAT_RAMP, identical in both themes --- */
+  --cream: #fce0c1;
+  --bounce: #f2ad74;
+  --fur: #e89c65;
+  --blush: #612c2d;
+  --plum-red: #531a26;
+  --plum: #470928;
+  /* Accent fill is theme-constant: #a85a2e carries 5.06:1 on white.
+     Rationale and contrast audit in src/popup.css:39-45. */
+  --accent: #a85a2e;
+  --accent-hover: #96502a;
+  --on-accent: #ffffff;
+
+  /* The demo "web page" surface. Deliberately does NOT flip with the theme:
+     it depicts a page being browsed, not site chrome. Both stops are real
+     ramp entries, so the orange fur reads as lit by its own shadow family
+     instead of floating on an unrelated forest green. */
+  --demo-top: var(--plum-red);
+  --demo-bot: var(--plum);
+  --on-demo: rgba(255, 248, 239, 0.34);
+  --on-demo-faint: rgba(255, 248, 239, 0.07);
+
+  /* --- Semantic tokens: these flip in dark mode --- */
+  --paper: #fffdf9;
+  --surface: #fff8ef;
+  --raised: #fffdf8;
+  --label: #241812;
+  --label-secondary: #6f594d;
+  --label-tertiary: #8e7b70;
+  --outline: var(--plum);
+  --outline-a: 71, 9, 40;
+  --hairline: rgba(71, 9, 40, 0.14);
+  --code-bg: #ffe2b8;
+  --code-label: var(--label);
+
+  /* Modular scale, ratio ~1.28. Replaces the old ad-hoc 13/18/22/24/44/94. */
+  --t-caption: 13px;
+  --t-small: 15px;
+  --t-body: 17px;
+  --t-lead: 20px;
+  --t-h3: 26px;
+  --t-h2: clamp(28px, 3.4vw, 34px);
+  --t-h1: clamp(34px, 4.4vw, 46px);
+  --t-display: clamp(52px, 7vw, 84px);
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  /* The extension's curve, so site and product move the same way. */
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur: 240ms;
+
+  /* Sticker depth. The hard offset is the signature; the soft ambient layer
+     underneath is what keeps it from looking like clip art. */
+  --lift-lg: 14px;
+  --lift-md: 9px;
+  --lift-sm: 6px;
+  --sticker-lg:
+    0 var(--lift-lg) 0 rgba(var(--outline-a), 0.16),
+    0 28px 62px rgba(var(--outline-a), 0.20);
+  --sticker-md:
+    0 var(--lift-md) 0 rgba(var(--outline-a), 0.14),
+    0 18px 40px rgba(var(--outline-a), 0.16);
+  --sticker-sm:
+    0 var(--lift-sm) 0 rgba(var(--outline-a), 0.13),
+    0 12px 26px rgba(var(--outline-a), 0.12);
+
   color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #241812;
-  background: #fff8ef;
+  font-family: var(--font);
+  color: var(--label);
+  background: var(--surface);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --paper: #1c1b19;
+    --surface: #1c1b19;
+    --raised: #26221f;
+    --label: #f5efe7;
+    --label-secondary: #c9bcb1;
+    --label-tertiary: #9c8d82;
+    /* A plum outline disappears against a near-black page. Inverting the
+       stroke to the ramp's lightest stop keeps the sticker silhouette
+       readable, which is the whole point of the outline. */
+    --outline: var(--cream);
+    --outline-a: 252, 224, 193;
+    --hairline: rgba(252, 224, 193, 0.16);
+    --code-bg: rgba(252, 224, 193, 0.12);
+    --code-label: var(--cream);
+  }
 }
 
 * {
@@ -12,163 +127,263 @@
 body {
   margin: 0;
   background:
-    radial-gradient(circle at 16% 8%, rgba(255, 226, 184, 0.7), transparent 26%),
-    linear-gradient(135deg, #fff8ef, #f6eee6 58%, #dce8df);
+    radial-gradient(circle at 14% 6%, rgba(242, 173, 116, 0.24), transparent 34%),
+    radial-gradient(circle at 88% 92%, rgba(97, 44, 45, 0.10), transparent 42%),
+    var(--surface);
 }
 
 main {
-  display: grid;
-  gap: 28px;
+  display: block;
 }
 
-.hero,
-.band,
-.features,
-.install {
-  width: min(1120px, calc(100vw - 32px));
+/* One container rule for every band on the page. */
+.wrap {
+  width: min(1120px, calc(100vw - var(--s8)));
   margin: 0 auto;
 }
 
+section {
+  padding-block: var(--s10);
+}
+
 .hero {
-  min-height: 92vh;
+  /* Capped rather than a bare 92vh: on a tall display the old rule opened a
+     screenful of dead air above the headline. */
+  min-height: min(78vh, 680px);
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
-  gap: 32px;
+  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
+  gap: var(--s9);
   align-items: center;
-  padding: 36px 0;
+  padding-block: var(--s8) var(--s9);
 }
 
 .hero-copy {
   display: grid;
-  gap: 18px;
+  gap: var(--s4);
+  justify-items: start;
+}
+
+/* The name carries the display size; the promise sits one step down. Splitting
+   them keeps the h1 short enough to stay on one line, which is what makes the
+   wordmark read as a mark rather than a paragraph. */
+.tagline {
+  color: var(--label);
+  font-size: var(--t-h1);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  max-width: 20ch;
+  margin-top: var(--s1);
+}
+
+/* ---------- Type ---------- */
+
+h1, h2, h3, p, ol, ul, figure, dl, dd {
+  margin: 0;
 }
 
 .eyebrow {
-  margin: 0;
-  color: #7a4b31;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0;
+  color: var(--blush);
+  font-size: var(--t-caption);
+  font-weight: 700;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
-h1,
-h2,
-p {
-  margin: 0;
+@media (prefers-color-scheme: dark) {
+  .eyebrow { color: var(--bounce); }
 }
 
 h1 {
-  color: #4a2b1d;
-  font-size: clamp(52px, 8vw, 94px);
-  line-height: 0.95;
-  letter-spacing: 0;
+  color: var(--label);
+  font-size: var(--t-display);
+  font-weight: 800;
+  line-height: 0.94;
+  letter-spacing: -0.03em;
 }
 
 h2 {
-  color: #4a2b1d;
-  font-size: clamp(28px, 4vw, 44px);
-  line-height: 1;
-  letter-spacing: 0;
+  color: var(--label);
+  font-size: var(--t-h2);
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
 }
 
-.lede,
-.band p,
-.features p,
-.install li {
-  color: #5f4a40;
-  font-size: 18px;
-  line-height: 1.55;
+h3 {
+  color: var(--label);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
 }
+
+p {
+  color: var(--label-secondary);
+  font-size: var(--t-body);
+  line-height: 1.6;
+}
+
+.lede {
+  font-size: var(--t-lead);
+  line-height: 1.55;
+  max-width: 46ch;
+}
+
+.section-head {
+  display: grid;
+  gap: var(--s3);
+  max-width: 58ch;
+  margin-bottom: var(--s8);
+}
+
+/* ---------- Buttons ---------- */
+/* Scoped to .btn. The old sheet styled the bare `a` element, which turned
+   every link on the page -- including prose and footer links -- into a
+   44px-tall filled button. */
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: var(--s3);
+  margin-top: var(--s2);
 }
 
-a {
+.btn {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 18px;
-  border: 3px solid #4a2b1d;
-  border-radius: 8px;
-  background: #4a2b1d;
-  color: #fff8ef;
-  font-weight: 850;
+  min-height: 48px;
+  padding: 0 var(--s6);
+  border: 3px solid var(--outline);
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--t-body);
+  font-weight: 700;
+  letter-spacing: -0.01em;
   text-decoration: none;
+  box-shadow: 0 var(--lift-sm) 0 rgba(var(--outline-a), 0.22);
+  transition:
+    transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease),
+    background-color var(--dur) var(--ease);
 }
 
-a.secondary {
-  background: #fff8ef;
-  color: #4a2b1d;
+.btn.secondary {
+  background: var(--paper);
+  color: var(--label);
 }
+
+/* The sticker idiom implies a physical press: the button travels down by
+   exactly the amount its hard shadow shrinks, so the shadow stays pinned to
+   the page while the cap moves. */
+.btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(3px);
+  box-shadow: 0 3px 0 rgba(var(--outline-a), 0.22);
+}
+
+.btn.secondary:hover {
+  background: var(--surface);
+}
+
+.btn:active {
+  transform: translateY(var(--lift-sm));
+  box-shadow: 0 0 0 rgba(var(--outline-a), 0.22);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.textlink {
+  color: var(--label);
+  font-weight: 600;
+  text-decoration-color: var(--hairline);
+  text-underline-offset: 3px;
+  transition: color var(--dur) var(--ease);
+}
+
+.textlink:hover {
+  color: var(--accent);
+}
+
+/* ---------- Hero browser demo ---------- */
 
 .browser-demo {
   overflow: hidden;
-  border: 4px solid #4a2b1d;
-  border-radius: 12px;
-  background: #fffdf8;
-  box-shadow: 0 16px 0 rgba(74, 43, 29, 0.14), 0 28px 70px rgba(36, 24, 18, 0.2);
+  border: 4px solid var(--outline);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--sticker-lg);
 }
 
 .browser-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 14px;
-  border-bottom: 3px solid #4a2b1d;
-  background: #ffe2b8;
+  gap: var(--s2);
+  min-height: 44px;
+  padding: 0 var(--s4);
+  border-bottom: 3px solid var(--outline);
+  background: var(--cream);
 }
 
 .browser-bar span {
   width: 10px;
   height: 10px;
-  border: 2px solid #4a2b1d;
+  border: 2px solid var(--plum);
   border-radius: 50%;
-  background: #fff8ef;
+  background: var(--surface);
 }
 
 .browser-bar strong {
-  margin-left: 8px;
-  color: #6f594d;
-  font-size: 13px;
+  margin-left: var(--s2);
+  color: var(--plum);
+  font-family: var(--font-mono);
+  font-size: var(--t-caption);
+  font-weight: 500;
 }
 
 .browser-page {
   position: relative;
-  min-height: 440px;
+  min-height: 460px;
   overflow: hidden;
   background:
-    linear-gradient(90deg, rgba(74, 43, 29, 0.08) 1px, transparent 1px),
-    linear-gradient(#163c36, #102e29);
+    linear-gradient(90deg, var(--on-demo-faint) 1px, transparent 1px),
+    linear-gradient(var(--demo-top), var(--demo-bot));
   background-size: 80px 80px, auto;
 }
 
+/* Moved out of the bottom-right corner. The old absolute placement
+   (right/bottom) put the skeleton bars underneath the cup and across the
+   cat's paw, which read as a rendering glitch rather than a mock page. */
 .feed-lines {
   position: absolute;
-  right: 38px;
-  bottom: 42px;
+  left: var(--s7);
+  top: var(--s7);
   display: grid;
-  gap: 14px;
-  width: 220px;
+  gap: var(--s3);
+  width: min(240px, 46%);
 }
 
 .feed-lines span {
-  height: 18px;
+  height: 14px;
   border-radius: 999px;
-  background: rgba(255, 248, 239, 0.32);
+  background: var(--on-demo);
 }
+
+.feed-lines span:nth-child(2) { width: 82%; }
+.feed-lines span:nth-child(3) { width: 60%; }
 
 .demo-cat {
   position: absolute;
-  left: 21%;
-  bottom: 18%;
-  /* Sized so the auto height lands at ~324px — the buddy art is 0.78:1, and at
+  left: 12%;
+  bottom: 9%;
+  /* Sized so the auto height lands at ~324px -- the buddy art is 0.78:1, and at
      the old 300px width the box grew to 385px and clipped against
-     .browser-page's 440px overflow:hidden. */
+     .browser-page's overflow:hidden. */
   width: min(252px, 44%);
 }
 
@@ -176,7 +391,7 @@ a.secondary {
   width: 100%;
   display: block;
   image-rendering: pixelated;
-  filter: drop-shadow(0 18px 0 rgba(36, 24, 18, 0.18));
+  filter: drop-shadow(0 18px 0 rgba(36, 24, 18, 0.22));
 }
 
 /* The demo cup is the extension's own sprite, not a lookalike drawn in CSS.
@@ -185,9 +400,9 @@ a.secondary {
    way the old hand-tuned box did. */
 .demo-cup {
   position: absolute;
-  right: -8%;
-  bottom: 4%;
-  width: 34%;
+  right: 4%;
+  bottom: 6%;
+  width: 31%;
   /* The sprite canvas is square and every layer shares its origin. */
   aspect-ratio: 1;
 }
@@ -221,30 +436,98 @@ a.secondary {
   top: var(--liq-y);
 }
 
-.band {
+/* ---------- Brew menu ---------- */
+/* Transcribed from BREW_MODES in src/popup.js:42-75. If a mode changes there,
+   change it here -- the site must not advertise a brew the popup cannot run. */
+
+.menu-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 28px;
-  align-items: center;
-  padding: 38px;
-  border: 4px solid #4a2b1d;
-  border-radius: 12px;
-  background: #fffdf8;
+  gap: 0;
+  border: 4px solid var(--outline);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--sticker-md);
+  overflow: hidden;
 }
 
-.band > div:first-child {
+.menu-item {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--s3) var(--s5);
+  padding: var(--s6) var(--s7);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.menu-item + .menu-item {
+  border-top: 2px solid var(--hairline);
+}
+
+.menu-item:hover {
+  background: rgba(var(--outline-a), 0.04);
+}
+
+.menu-item dt {
+  font-size: var(--t-h3);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--label);
+}
+
+.menu-item .dose {
+  font-family: var(--font-mono);
+  font-size: var(--t-lead);
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .menu-item .dose { color: var(--bounce); }
+}
+
+.menu-item dd {
+  margin: 0;
+}
+
+.menu-item dd:not(.dose) {
+  grid-column: 1 / -1;
+  color: var(--label-secondary);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  max-width: 52ch;
+}
+
+/* ---------- Gentle Gatekeeper band ---------- */
+
+.band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s8);
+  align-items: center;
+  padding: var(--s8);
+  border: 4px solid var(--outline);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  /* The old sheet gave this card no shadow at all while the hero demo had a
+     heavy one. That inconsistency was a large part of the unfinished read. */
+  box-shadow: var(--sticker-md);
+}
+
+.band-copy {
+  display: grid;
+  gap: var(--s4);
 }
 
 .flood-preview {
   display: grid;
-  gap: 10px;
+  gap: var(--s3);
   justify-items: center;
-  padding: 18px;
-  border: 3px solid #4a2b1d;
-  border-radius: 10px;
-  background: #fff8ef;
+  padding: var(--s5);
+  border: 3px solid var(--outline);
+  border-radius: var(--r-md);
+  background: var(--surface);
   text-align: center;
 }
 
@@ -253,9 +536,9 @@ a.secondary {
   width: 100%;
   min-height: 190px;
   overflow: hidden;
-  border: 3px solid #4a2b1d;
-  border-radius: 8px;
-  background: #163c36;
+  border: 3px solid var(--outline);
+  border-radius: var(--r-sm);
+  background: linear-gradient(var(--demo-top), var(--demo-bot));
 }
 
 .flood-page span {
@@ -264,15 +547,15 @@ a.secondary {
   display: block;
   width: 70%;
   height: 12px;
-  margin: 18px auto 0;
+  margin: var(--s5) auto 0;
   border-radius: 999px;
-  background: rgba(255, 248, 239, 0.4);
+  background: var(--on-demo);
 }
 
 .flood-page img {
   position: absolute;
   left: 50%;
-  bottom: 18px;
+  bottom: var(--s5);
   z-index: 3;
   width: 96px;
   transform: translateX(-50%);
@@ -303,12 +586,16 @@ a.secondary {
 }
 
 .flood-preview strong {
-  color: #4a2b1d;
-  font-size: 22px;
+  color: var(--label);
+  font-size: var(--t-lead);
+  font-weight: 700;
+  letter-spacing: -0.015em;
 }
 
 .flood-preview small {
-  color: #6f594d;
+  color: var(--label-tertiary);
+  font-size: var(--t-small);
+  line-height: 1.45;
 }
 
 @keyframes siteCoffeeFlood {
@@ -316,53 +603,222 @@ a.secondary {
   70%, 100% { transform: scaleY(1); }
 }
 
-.features {
+/* ---------- Card grids ---------- */
+
+.card-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
+  gap: var(--s5);
 }
 
-.features article,
-.install {
+.card-grid.two-up {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.card {
   display: grid;
-  gap: 12px;
-  padding: 24px;
-  border: 3px solid #4a2b1d;
-  border-radius: 10px;
-  background: #fffdf8;
+  gap: var(--s3);
+  align-content: start;
+  padding: var(--s7);
+  border: 3px solid var(--outline);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: var(--sticker-sm);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
-.features h2,
-.install h2 {
-  font-size: 24px;
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 calc(var(--lift-sm) + 2px) 0 rgba(var(--outline-a), 0.13),
+    0 16px 32px rgba(var(--outline-a), 0.14);
 }
 
-.install {
-  margin-bottom: 36px;
+.card h3 {
+  font-size: var(--t-lead);
+}
+
+.card p {
+  font-size: var(--t-small);
+  line-height: 1.55;
+}
+
+/* ---------- Install ---------- */
+
+.install-card {
+  padding: var(--s8);
+  border: 4px solid var(--outline);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--sticker-md);
+}
+
+.install-card ol {
+  display: grid;
+  gap: var(--s4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.install-card li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--s4);
+  color: var(--label-secondary);
+  font-size: var(--t-body);
+  line-height: 1.55;
+  counter-increment: step;
+}
+
+.install-card li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--outline);
+  border-radius: 50%;
+  color: var(--label);
+  font-size: var(--t-caption);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 code {
-  padding: 2px 5px;
-  border-radius: 4px;
-  background: #ffe2b8;
+  padding: 2px var(--s1);
+  border-radius: var(--r-sm);
+  background: var(--code-bg);
+  color: var(--code-label);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
 }
 
-@media (max-width: 820px) {
+/* ---------- Notes + footer ---------- */
+
+.notes {
+  display: grid;
+  gap: var(--s5);
+  padding-top: var(--s7);
+  border-top: 2px solid var(--hairline);
+}
+
+.notes p {
+  font-size: var(--t-small);
+  color: var(--label-tertiary);
+  max-width: 68ch;
+}
+
+.site-footer {
+  padding-block: var(--s8) var(--s9);
+  border-top: 2px solid var(--hairline);
+}
+
+.site-footer .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+}
+
+.site-footer p {
+  font-size: var(--t-small);
+  color: var(--label-tertiary);
+}
+
+.footer-mark {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-weight: 700;
+  color: var(--label);
+  letter-spacing: -0.01em;
+}
+
+.footer-mark img {
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  :root {
+    --s10: 72px;
+    --s11: 88px;
+  }
+
+  .wrap {
+    width: min(1120px, calc(100vw - var(--s6)));
+  }
+
   .hero,
-  .band,
-  .features {
+  .band {
     grid-template-columns: 1fr;
   }
 
   .hero {
     min-height: auto;
+    gap: var(--s8);
+  }
+
+  .band {
+    padding: var(--s6);
+    gap: var(--s6);
+  }
+
+  .card-grid,
+  .card-grid.two-up {
+    grid-template-columns: 1fr;
   }
 
   .browser-page {
     min-height: 360px;
   }
 
-  .band {
-    padding: 24px;
+  .install-card {
+    padding: var(--s6);
+  }
+
+  .menu-item {
+    padding: var(--s5) var(--s6);
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .menu-item {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Mirrors the guard the extension already ships (src/popup.css:472-483). The
+   coffee flood is a decorative 4s loop; it must stop, not just shorten. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .flood-coffee {
+    animation: none;
+    transform: scaleY(0.72);
+  }
+
+  .btn:hover,
+  .card:hover {
+    transform: none;
   }
 }
