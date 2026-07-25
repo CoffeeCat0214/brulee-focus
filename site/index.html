@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CoffeeCat: a pixel coffee cat in residence on your browser</title>
-    <meta name="description" content="Crème Brûlée is a pixel cat in residence on the pages you read. Pour a Focus Coffee, watch her cup empty, and take a five-minute coffee break when it does.">
+    <meta name="description" content="Crème Brûlée is a pixel cat in residence on the pages you read. Pour a Focus Coffee, watch her cup empty, and take a five-minute coffee break when it does. Add her to Chrome in one click.">
 
     <!-- Paths are relative to the repo root, not site/. Serve the repo root
          (python3 -m http.server) or ../assets and ../src will 404. Fonts are
@@ -35,7 +35,7 @@
         <nav class="nav-links" aria-label="Sections">
           <a href="#focus">Focus</a>
           <a href="#gatekeeper">Break</a>
-          <a href="#buddy">The cat</a>
+          <a href="#buddy">Brûlée</a>
           <a href="#privacy">Privacy</a>
           <a href="#install">Install</a>
         </nav>
@@ -56,8 +56,11 @@
             <div class="hero-copy">
               <p class="tagline" data-reveal>A very small cat who takes coffee seriously.</p>
               <p class="lede" data-reveal>Crème Brûlée keeps to the corner of whatever page you happen to be reading. Pour a Focus Coffee and her cup begins to empty, quietly, in time with your afternoon.</p>
+              <!-- TODO before publishing: replace REPLACE_WITH_EXTENSION_ID with the
+                   real listing id. Left as an obvious placeholder so a dead link
+                   cannot ship quietly. This is the only store link on the page. -->
               <div class="hero-actions" data-reveal>
-                <a class="btn" href="#install">Bring her home</a>
+                <a class="btn" href="https://chromewebstore.google.com/detail/coffeecat/REPLACE_WITH_EXTENSION_ID">Add to Chrome</a>
                 <a class="btn secondary" href="#gatekeeper">See the coffee break</a>
               </div>
             </div>
@@ -233,19 +236,25 @@
           <div class="act-body">
             <div class="section-head" data-reveal>
               <h2>Bringing her home.</h2>
-              <p>She is not on the Chrome Web Store yet. Until she is: five steps and an unpacked folder.</p>
+              <p>She is on the Chrome Web Store, and she asks for one permission on the way in. Four steps, and she is on every page you open.</p>
             </div>
 
             <ol class="steps">
               <!-- Each step's content is wrapped in a single <span>: the <li> is a
                    grid container, so an inline <code> sibling would otherwise
                    become its own grid item and drop onto the next row. -->
-              <li data-reveal><span>Open <code>chrome://extensions</code>.</span></li>
-              <li data-reveal><span>Turn on Developer mode.</span></li>
-              <li data-reveal><span>Choose Load unpacked.</span></li>
-              <li data-reveal><span>Select the CoffeeCat folder.</span></li>
+              <li data-reveal><span>Open the CoffeeCat listing on the Chrome Web Store.</span></li>
+              <li data-reveal><span>Choose Add to Chrome.</span></li>
+              <li data-reveal><span>Approve the one permission she asks for: <code>storage</code>.</span></li>
               <li data-reveal><span>Open any web page and pour the first coffee.</span></li>
             </ol>
+
+            <!-- Wrapped rather than class="notes" on the <p>: the muted, smaller
+                 type comes from the `.notes p` descendant rule, so the class has
+                 to sit on a parent to take effect. -->
+            <div class="notes" data-reveal>
+              <p>Prefer to run her from source? Turn on Developer mode at <code>chrome://extensions</code>, choose Load unpacked, and select the CoffeeCat folder.</p>
+            </div>
           </div>
         </div>
       </section>

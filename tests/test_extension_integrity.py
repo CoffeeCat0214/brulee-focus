@@ -193,7 +193,6 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
         "coffeePausedRemainingMs",
         "coffeeBrewMode",
         "coffeeBrewLabel",
-        "coffeeBreakOnComplete",
         "coffeeRunning",
         "coffeeStartedAt",
         "coffeeSessionId",
@@ -220,11 +219,16 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
         "timer-refill",
         "brew-deck",
         "brew-detail-copy",
-        "stat-sessions",
-        "stat-minutes",
-        "stat-cups",
     ):
         assert f'id="{element_id}"' in html
+
+    # The popup used to end in a lifetime "N sessions / N min / N cups" strip.
+    # It never reset, so it only ever counted up -- and two of its three numbers
+    # were the same counter. The stats themselves still accumulate in storage
+    # for the coffee-flood share card; only the popup readout is gone.
+    for element_id in ("stat-sessions", "stat-minutes", "stat-cups"):
+        assert f'id="{element_id}"' not in html
+    assert "focusStats" in popup, "storage-side stats must survive the footer"
 
     for brew_mode in ("espresso", "slow-pour", "cold-brew", "decaf"):
         assert f'data-brew-mode="{brew_mode}"' in html
@@ -232,8 +236,15 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
 
     assert "brew-option" in html
     assert "selectBrewMode" in popup
-    assert "breakOnComplete: true" in popup
-    assert "breakOnComplete: true" in content
+
+    # The coffee flood is unconditional. It used to hang off a per-mode
+    # `breakOnComplete` flag that only Slow Pour set, which meant three of the
+    # four modes hit zero and showed nothing at all. Both completion paths must
+    # now start the break outright, and neither may reintroduce the flag.
+    assert "breakRunning: true" in popup
+    assert "breakRunning: true" in content
+    assert "breakOnComplete" not in popup
+    assert "breakOnComplete" not in content
 
 
 def test_brew_modes_match_markup():

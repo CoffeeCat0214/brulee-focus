@@ -27,44 +27,73 @@
   --dur: 240ms;
   --dur-thumb: 280ms;
 
-  --bg: #fffdf9;
-  --label: #241812;
-  --label-secondary: #6f594d;
-  --label-tertiary: #8e7b70;
-  --separator: rgba(74, 43, 29, 0.12);
-  --fill-tertiary: rgba(74, 43, 29, 0.06);
-  --fill-hover: rgba(74, 43, 29, 0.05);
+  /* The chrome is neutral on purpose. Every one of these used to carry a brown
+     cast (label #241812, secondary #6F594D, fills mixed from #4A2B1D), which
+     put a weak tint of the theme on every pixel and left nothing for the theme
+     itself to say. Warmth now lives in exactly two places: a near-imperceptible
+     bias in the greys (they are warm-neutral, not blue-grey, so they sit under
+     the cup without clashing) and the cup itself. */
+  --bg: #fcfbf9;
+  --label: #1b1a18;
+  --label-secondary: #6b6862;
+  --label-tertiary: #97938c;
+  --separator: rgba(28, 26, 24, 0.1);
+  --fill-tertiary: rgba(28, 26, 24, 0.05);
+  --fill-hover: rgba(28, 26, 24, 0.045);
   --thumb: #ffffff;
-  --switch-off: rgba(74, 43, 29, 0.18);
+  --switch-off: rgba(28, 26, 24, 0.16);
 
-  /* Accent fill is theme-constant: #A85A2E carries 5.06:1 against white.
-     Lightening it for dark mode drops to 3.29:1 and fails AA at 15px. */
-  --accent: #a85a2e;
-  --accent-hover: #96502a;
-  --on-accent: #ffffff;
-  --accent-label: #8f4a22; /* 6.5:1 on --bg */
+  /* Primary action is ink, not coffee. A saturated full-width slab is the
+     loudest object on a 360px surface, and spending the brand colour there
+     meant the button outshouted the cup, the one thing on screen that is
+     actually about coffee. Ink recedes; the cup becomes the only chroma.
+     It inverts in dark mode (below) because near-black on near-black is not
+     a button. */
+  --cta: #1f1d1b;
+  --cta-hover: #35312d;
+  --cta-pressed: #46413b;
+  --on-cta: #ffffff;
 
-  /* The buddy art's own darkest edge, sampled from the illustration. It used to
-     be #4a2b1d, a flat brown that belonged to no part of the cat. */
-  --cup-stroke: #470928;
+  /* Hover for the secondary pill: --fill-hover is a wash meant for transparent
+     icon buttons and is invisible when it lands on --fill-tertiary. */
+  --fill-secondary: rgba(28, 26, 24, 0.09);
+
+  /* Dark roast, not plum. This was #470928 (EDGE in tools/render_mug.py) on the
+     theory that the vector cup should use the illustration's own edge colour.
+     But the raster never applies EDGE at full strength: it blends it at 0.18-0.58
+     into browns, so the darkest structural pixel in mug-back.png is #8D5C62 and
+     the darkest in mug-fill.png is #32170D. A 2.8-unit stroke of undiluted EDGE
+     overstated it, which nothing revealed while the whole UI was brown-tinted.
+     Now that the chrome is neutral and this cup is the only chroma on screen, a
+     violet ring around it was the first thing the eye landed on. */
+  --cup-stroke: #3a2320;
   --cup-body: #fff8ef;
-  --shadow-thumb: 0 1px 3px rgba(36, 24, 18, 0.16), 0 0 0 0.5px rgba(36, 24, 18, 0.05);
+  --shadow-thumb: 0 1px 3px rgba(28, 26, 24, 0.16), 0 0 0 0.5px rgba(28, 26, 24, 0.05);
+  /* The cup keeps a warm shadow while the UI chrome above does not: it is a
+     physical object lit by the scene, not a control. */
   --cup-shadow: 0 5px 10px rgba(74, 43, 29, 0.14);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #1c1b19;
-    --label: #f5efe7;
-    --label-secondary: rgba(245, 239, 231, 0.6);
-    --label-tertiary: rgba(245, 239, 231, 0.4);
+    --label: #f4f2ee;
+    --label-secondary: rgba(244, 242, 238, 0.6);
+    --label-tertiary: rgba(244, 242, 238, 0.4);
     --separator: rgba(255, 255, 255, 0.12);
     --fill-tertiary: rgba(255, 255, 255, 0.08);
     --fill-hover: rgba(255, 255, 255, 0.06);
     --thumb: #3a3733;
     --switch-off: rgba(255, 255, 255, 0.18);
+    --fill-secondary: rgba(255, 255, 255, 0.14);
 
-    --accent-label: #e0996a; /* 7.4:1 on --bg */
+    /* Inverted, not lightened. Nudging the light-mode ink up to a mid-grey
+       would land it in the same value band as --fill-tertiary and the button
+       would read as disabled. */
+    --cta: #f4f2ee;
+    --cta-hover: #ffffff;
+    --cta-pressed: #d9d5cf;
+    --on-cta: #1c1b19;
 
     --cup-stroke: #c9bcb1;
     --cup-body: #2a2724;
@@ -98,8 +127,11 @@ dd {
   margin: 0;
 }
 
+/* Ink, not a tint. A coloured ring was the last place the theme colour leaked
+   into the chrome, and an ink ring is the higher-contrast one in both themes
+   anyway (offset puts it on --bg, never on the button it wraps). */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--label);
   outline-offset: 2px;
   border-radius: var(--r-seg);
 }
@@ -253,11 +285,6 @@ dd {
   font-size: 15px;
 }
 
-.sep {
-  padding: 0 2px;
-  color: var(--label-tertiary);
-}
-
 /* ── Segmented control ───────────────────────────────────────────────── */
 
 .segmented {
@@ -328,8 +355,8 @@ dd {
   margin-top: var(--s6);
 }
 
-/* The lock note is information, not an action — it does not get the accent.
-   Accent is rationed to three uses: primary button, Reset link, focus ring. */
+/* The lock note is information, not an action, so it stays secondary text even
+   though it is the one line on screen that most wants to be noticed. */
 .lock-note,
 .brew-copy {
   color: var(--label-secondary);
@@ -350,8 +377,8 @@ dd {
   min-height: 38px;
   border: 0;
   border-radius: var(--r-card);
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--cta);
+  color: var(--on-cta);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -359,42 +386,36 @@ dd {
 }
 
 .button-primary:hover {
-  background: var(--accent-hover);
+  background: var(--cta-hover);
 }
 
+/* Press feedback is a value shift, not a scale: the button is full-bleed
+   between two 20px gutters, and a transform makes those gutters visibly
+   breathe. Faster than --dur so the press feels attached to the finger. */
+.button-primary:active {
+  background: var(--cta-pressed);
+  transition-duration: 60ms;
+}
+
+/* A neutral pill, not coloured text. Stripping the accent off a bare text
+   button would leave it indistinguishable from the label sitting next to it,
+   so the affordance has to move from colour to shape, which is what the
+   system-settings "Change…" button does for the same reason. */
 .button-plain {
-  padding: 2px var(--s2);
+  padding: 4px 10px;
   border: 0;
   border-radius: var(--r-seg);
-  background: transparent;
-  color: var(--accent-label);
+  background: var(--fill-tertiary);
+  color: var(--label);
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: background var(--dur) var(--ease);
 }
 
 .button-plain:hover {
-  background: var(--fill-hover);
-}
-
-/* ── Stats footer ────────────────────────────────────────────────────── */
-
-.stats {
-  display: flex;
-  gap: var(--s1);
-  margin-top: var(--s4);
-  padding-top: var(--s3);
-  border-top: 1px solid var(--separator);
-  color: var(--label-secondary);
-  font-size: 13px;
-}
-
-.stats strong {
-  color: var(--label);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  background: var(--fill-secondary);
 }
 
 /* ── Settings rows ───────────────────────────────────────────────────── */
@@ -459,8 +480,16 @@ input[role="switch"]::before {
   transition: transform var(--dur) var(--ease);
 }
 
+/* Same fill/knob pair as the primary button, and for the same reason: "on" is
+   ink everywhere in this popup, so the two active controls in the UI cannot
+   disagree about what active looks like. The knob inverts with the track:
+   in dark mode the track is near-white, and a white knob on it is not a knob. */
 input[role="switch"]:checked {
-  background: var(--accent);
+  background: var(--cta);
+}
+
+input[role="switch"]:checked::before {
+  background: var(--on-cta);
 }
 
 input[role="switch"]:checked::before {

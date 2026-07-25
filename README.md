@@ -18,7 +18,7 @@ CoffeeCat is a tiny Chrome extension that puts a pixel coffee cat buddy on the p
 - Drag CoffeeCat to a new spot on the page.
 - Click CoffeeCat to sip and purr.
 - Use **Focus Coffee** to choose Espresso Shot, Slow Pour, Cold Brew, or Decaf with the brew mode toggles.
-- The cup drains as time runs out; Slow Pour ends with a short coffee-flood break.
+- The cup drains as time runs out. Every finished session ends with a 5-minute coffee-flood break, whichever brew you picked.
 - Use **Reset position** to return CoffeeCat to the default corner.
 
 ## Website
@@ -43,4 +43,4 @@ Chrome does not allow extensions to freely draw inside the browser's native tab 
 
 The Focus Coffee cup updates its liquid level several times per second for a smoother drain. The coffee surface is intentionally subtle so the changing level remains easier to read than the crema highlight.
 
-The coffee flood appears on the current page when Focus Coffee ends. It is a local, page-level break reminder, not a network blocker.
+The coffee flood appears on the current page when Focus Coffee ends, on every brew mode. It is a local, page-level break reminder, not a network blocker. It only draws where the content script runs, so an `http`/`https` tab must be open and CoffeeCat must be enabled.

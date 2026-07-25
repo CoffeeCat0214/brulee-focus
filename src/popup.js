@@ -6,7 +6,6 @@ const DEFAULT_SETTINGS = {
   coffeePausedRemainingMs: 25 * 60 * 1000,
   coffeeBrewMode: "espresso",
   coffeeBrewLabel: "Espresso Shot",
-  coffeeBreakOnComplete: false,
   coffeeRunning: false,
   coffeeStartedAt: null,
   coffeeSessionId: null,
@@ -38,21 +37,25 @@ const CUP_INTERIOR_HEIGHT = globalThis.COFFEECAT_MUG.SVG.interiorHeight;
    content.js, and there is a single cat image. `copy` therefore states
    duration and break behaviour only — both are fields on this same object.
    test_brew_modes_match_markup enforces this; do not add copy you cannot
-   point at an implementation for. */
+   point at an implementation for.
+
+   The flood tail repeats across all four strings on purpose. It used to be a
+   per-mode promise, and only Slow Pour kept it; now every session ends the same
+   way, and the line the user is actually looking at should say so rather than
+   making them infer it from a mode they did not pick. The 5 minutes is
+   breakDurationMs above. */
 const BREW_MODES = {
   espresso: {
     id: "espresso",
     label: "Espresso Shot",
     durationMs: 25 * 60 * 1000,
-    breakOnComplete: false,
     status: "espresso focus",
-    copy: "25 minutes, straight through."
+    copy: "25 minutes, then a 5-minute coffee flood."
   },
   "slow-pour": {
     id: "slow-pour",
     label: "Slow Pour",
     durationMs: 45 * 60 * 1000,
-    breakOnComplete: true,
     status: "slow pour focus",
     copy: "45 minutes, then a 5-minute coffee flood."
   },
@@ -60,17 +63,15 @@ const BREW_MODES = {
     id: "cold-brew",
     label: "Cold Brew",
     durationMs: 90 * 60 * 1000,
-    breakOnComplete: false,
     status: "deep cold brew",
-    copy: "90 minutes. Deep work, no interruptions."
+    copy: "90 minutes, then a 5-minute coffee flood."
   },
   decaf: {
     id: "decaf",
     label: "Decaf",
     durationMs: 15 * 60 * 1000,
-    breakOnComplete: false,
     status: "gentle decaf",
-    copy: "15 minutes. A low-pressure start."
+    copy: "15 minutes, then a 5-minute coffee flood."
   }
 };
 const DEFAULT_BREW_MODE = BREW_MODES.espresso;
@@ -92,9 +93,6 @@ const brewLockNote = document.getElementById("brew-lock-note");
 const brewDetailCopy = document.getElementById("brew-detail-copy");
 const sizeDeck = document.getElementById("size-deck");
 const sizeOptions = Array.from(document.querySelectorAll(".size-option"));
-const statSessions = document.getElementById("stat-sessions");
-const statMinutes = document.getElementById("stat-minutes");
-const statCups = document.getElementById("stat-cups");
 
 let settings = { ...DEFAULT_SETTINGS };
 let renderTimer = null;
@@ -110,8 +108,7 @@ const painted = {
   refillHidden: null,
   status: null,
   modeKey: null,
-  size: null,
-  stats: null
+  size: null
 };
 
 chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
@@ -143,7 +140,6 @@ function renderSettings() {
   enabledInput.checked = Boolean(settings.enabled);
   renderSize();
   renderCoffeeTimer();
-  renderStats();
   syncTicker();
 }
 
@@ -239,15 +235,6 @@ function renderSize() {
   const size = SIZES.includes(settings.size) ? settings.size : DEFAULT_SETTINGS.size;
   write("size", size, (value) => {
     selectSegment(sizeDeck, sizeOptions, SIZES.indexOf(value));
-  });
-}
-
-function renderStats() {
-  const stats = settings.focusStats;
-  write("stats", `${stats.sessionsCompleted}|${stats.minutesProtected}|${stats.cupsFinished}`, () => {
-    statSessions.textContent = String(stats.sessionsCompleted);
-    statMinutes.textContent = String(stats.minutesProtected);
-    statCups.textContent = String(stats.cupsFinished);
   });
 }
 
@@ -354,7 +341,6 @@ timerToggle.addEventListener("click", () => {
   chrome.storage.sync.set({
     coffeeBrewMode: activeMode.id,
     coffeeBrewLabel: activeMode.label,
-    coffeeBreakOnComplete: activeMode.breakOnComplete,
     coffeeRunning: true,
     coffeeStartedAt: Date.now() - (duration - nextRemaining),
     coffeePausedRemainingMs: nextRemaining,
@@ -377,7 +363,6 @@ timerRefill.addEventListener("click", () => {
     coffeeDurationMs: duration,
     coffeeBrewMode: activeMode.id,
     coffeeBrewLabel: activeMode.label,
-    coffeeBreakOnComplete: activeMode.breakOnComplete,
     breakRunning: false,
     breakStartedAt: null,
     snoozeUsedForSession: false,
@@ -398,7 +383,6 @@ function selectBrewMode(modeId) {
     coffeePausedRemainingMs: mode.durationMs,
     coffeeBrewMode: mode.id,
     coffeeBrewLabel: mode.label,
-    coffeeBreakOnComplete: mode.breakOnComplete,
     coffeeRunning: false,
     coffeeStartedAt: null,
     coffeeSessionId: null,
@@ -416,7 +400,6 @@ function completeFocusSession() {
   }
 
   const duration = getValidDuration(settings.coffeeDurationMs);
-  const shouldBreak = Boolean(settings.coffeeBreakOnComplete);
   const focusStats = settings.snoozeSessionRunning
     ? settings.focusStats
     : {
@@ -431,8 +414,8 @@ function completeFocusSession() {
     coffeeStartedAt: null,
     coffeePausedRemainingMs: 0,
     completedCoffeeSessionId: settings.coffeeSessionId,
-    breakRunning: shouldBreak,
-    breakStartedAt: shouldBreak ? Date.now() : null,
+    breakRunning: true,
+    breakStartedAt: Date.now(),
     snoozeSessionRunning: false,
     focusStats
   };
@@ -442,7 +425,7 @@ function completeFocusSession() {
     coffeeStartedAt: null,
     coffeePausedRemainingMs: 0,
     completedCoffeeSessionId: settings.coffeeSessionId,
-    breakRunning: shouldBreak,
+    breakRunning: true,
     breakStartedAt: settings.breakStartedAt,
     snoozeSessionRunning: false,
     focusStats
@@ -463,9 +446,6 @@ function normalizeSettings(source) {
     coffeeBrewLabel: typeof source.coffeeBrewLabel === "string" && source.coffeeBrewLabel.trim()
       ? source.coffeeBrewLabel
       : brewMode.label,
-    coffeeBreakOnComplete: typeof source.coffeeBreakOnComplete === "boolean"
-      ? source.coffeeBreakOnComplete
-      : brewMode.breakOnComplete,
     coffeeDurationMs,
     coffeePausedRemainingMs: getValidRemaining(
       source.coffeePausedRemainingMs,

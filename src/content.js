@@ -12,7 +12,6 @@
     coffeePausedRemainingMs: FOCUS_DURATION_MS,
     coffeeBrewMode: "espresso",
     coffeeBrewLabel: "Espresso Shot",
-    coffeeBreakOnComplete: false,
     coffeeRunning: false,
     coffeeStartedAt: null,
     coffeeSessionId: null,
@@ -29,30 +28,30 @@
     }
   };
 
+  // Modes differ by duration only. The coffee flood used to be per-mode, which
+  // meant three of the four modes ended in silence -- the timer expired and
+  // nothing on screen said so. Every finished session floods now, so the flag
+  // that used to gate it is gone rather than set to true four times.
   const BREW_MODES = {
     espresso: {
       id: "espresso",
       label: "Espresso Shot",
-      durationMs: 25 * 60 * 1000,
-      breakOnComplete: false
+      durationMs: 25 * 60 * 1000
     },
     "slow-pour": {
       id: "slow-pour",
       label: "Slow Pour",
-      durationMs: 45 * 60 * 1000,
-      breakOnComplete: true
+      durationMs: 45 * 60 * 1000
     },
     "cold-brew": {
       id: "cold-brew",
       label: "Cold Brew",
-      durationMs: 90 * 60 * 1000,
-      breakOnComplete: false
+      durationMs: 90 * 60 * 1000
     },
     decaf: {
       id: "decaf",
       label: "Decaf",
-      durationMs: 15 * 60 * 1000,
-      breakOnComplete: false
+      durationMs: 15 * 60 * 1000
     }
   };
   const DEFAULT_BREW_MODE = BREW_MODES.espresso;
@@ -650,13 +649,28 @@
     coffeeTimer = window.setInterval(updateCoffeeMeter, COFFEE_RENDER_INTERVAL_MS);
   }
 
+  // Ending the session and painting the cup are two different jobs. They used
+  // to share one early return on the meter's DOM: if the mug nodes were missing
+  // the tick bailed before completeFocusSession(), so a paint problem turned
+  // into "the timer never ended and the flood never came". Expiry is state, so
+  // it is settled first and unconditionally; only the drawing is guarded.
   function updateCoffeeMeter() {
+    const duration = getValidDuration(settings.coffeeDurationMs);
+    const remaining = getCoffeeRemaining(settings);
+
+    if (settings.coffeeRunning && remaining <= 0) {
+      completeFocusSession();
+    }
+
+    renderBreakOverlay();
+    paintCoffeeMeter(remaining, duration);
+  }
+
+  function paintCoffeeMeter(remaining, duration) {
     const meter = cat?.querySelector(".coffee-meter");
     const fillElement = cat?.querySelector(".mug-liquid");
     if (!meter || !fillElement) return;
 
-    const duration = getValidDuration(settings.coffeeDurationMs);
-    const remaining = getCoffeeRemaining(settings);
     const fill = Math.max(0, Math.min(1, remaining / duration));
 
     // Translate, never scale. The liquid sprite carries its own crema band and
@@ -667,12 +681,6 @@
     fillElement.style.transform = `translateY(${((1 - fill) * DRAIN_RANGE).toFixed(4)}%)`;
     meter.classList.toggle("is-empty", remaining <= 0);
     meter.classList.toggle("is-paused", !settings.coffeeRunning);
-
-    if (settings.coffeeRunning && remaining <= 0) {
-      completeFocusSession();
-    }
-
-    renderBreakOverlay();
   }
 
   function completeFocusSession() {
@@ -681,7 +689,6 @@
     }
 
     const duration = getValidDuration(settings.coffeeDurationMs);
-    const shouldBreak = Boolean(settings.coffeeBreakOnComplete);
     const nextStats = settings.snoozeSessionRunning
       ? settings.focusStats
       : {
@@ -696,8 +703,8 @@
       coffeeStartedAt: null,
       coffeePausedRemainingMs: 0,
       completedCoffeeSessionId: settings.coffeeSessionId,
-      breakRunning: shouldBreak,
-      breakStartedAt: shouldBreak ? Date.now() : null,
+      breakRunning: true,
+      breakStartedAt: Date.now(),
       snoozeSessionRunning: false,
       focusStats: nextStats
     };
@@ -707,7 +714,7 @@
       coffeeStartedAt: null,
       coffeePausedRemainingMs: 0,
       completedCoffeeSessionId: settings.coffeeSessionId,
-      breakRunning: shouldBreak,
+      breakRunning: true,
       breakStartedAt: settings.breakStartedAt,
       snoozeSessionRunning: false,
       focusStats: nextStats
@@ -966,6 +973,28 @@
         }
       }
 
+      /* Both the flood and the panel rest in an invisible state -- scaleY(0)
+         and opacity 0 -- and are only made visible by their animations. So
+         "animation: none" alone hides the break entirely instead of calming
+         it. Every rule here has to restore the end state by hand. site's
+         styles.css solves the same trap the same way. */
+      @media (prefers-reduced-motion: reduce) {
+        .coffee-flood {
+          animation: none;
+          transform: scaleY(1);
+        }
+
+        .coffee-wave {
+          animation: none;
+        }
+
+        .break-panel {
+          animation: none;
+          opacity: 1;
+          transform: none;
+        }
+      }
+
       @media (max-width: 480px) {
         .break-panel {
           padding: 20px;
@@ -1024,7 +1053,6 @@
       coffeeDurationMs: duration,
       coffeeBrewMode: activeMode.id,
       coffeeBrewLabel: activeMode.label,
-      coffeeBreakOnComplete: activeMode.breakOnComplete,
       breakRunning: false,
       breakStartedAt: null,
       snoozeUsedForSession: false,
@@ -1037,7 +1065,6 @@
       coffeeDurationMs: duration,
       coffeeBrewMode: activeMode.id,
       coffeeBrewLabel: activeMode.label,
-      coffeeBreakOnComplete: activeMode.breakOnComplete,
       breakRunning: false,
       breakStartedAt: null,
       snoozeUsedForSession: false,
@@ -1267,9 +1294,6 @@
       coffeeBrewLabel: typeof source.coffeeBrewLabel === "string" && source.coffeeBrewLabel.trim()
         ? source.coffeeBrewLabel
         : brewMode.label,
-      coffeeBreakOnComplete: typeof source.coffeeBreakOnComplete === "boolean"
-        ? source.coffeeBreakOnComplete
-        : brewMode.breakOnComplete,
       coffeeDurationMs,
       coffeePausedRemainingMs: getValidRemaining(source.coffeePausedRemainingMs, coffeeDurationMs)
     };
