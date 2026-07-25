@@ -7,7 +7,9 @@
     <meta name="description" content="A tiny coffee cat that chills with you while you browse. Start a Focus Coffee timer, watch the cup drain, and take a gentle break when the coffee is gone.">
 
     <!-- Paths are relative to the repo root, not site/. Serve the repo root
-         (python3 -m http.server) or ../assets and ../src will 404. -->
+         (python3 -m http.server) or ../assets and ../src will 404. Fonts are
+         the exception: CSS url()s resolve against styles.css, so site/fonts/
+         works either way. -->
     <link rel="icon" href="../assets/icons/icon-32.png" sizes="32x32">
     <link rel="apple-touch-icon" href="../assets/icons/icon-128.png">
 
@@ -17,173 +19,248 @@
     <meta property="og:image" content="../assets/coffeecat-buddy.png">
     <meta name="twitter:card" content="summary_large_image">
 
+    <!-- The wordmark is the first thing painted at display size; preloading the
+         sans stops it swapping in a beat after the layout settles. -->
+    <link rel="preload" href="fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main>
-      <section class="hero wrap">
-        <div class="hero-copy">
-          <p class="eyebrow">Chrome extension</p>
-          <h1>CoffeeCat</h1>
-          <p class="tagline">A cozy pixel coffee cat for your browser.</p>
-          <p class="lede">Keep a tiny companion on the pages you browse, start a gentle Focus Coffee timer, and watch the cup drain as time runs out.</p>
-          <div class="hero-actions">
-            <a class="btn" href="#install">Load locally</a>
-            <a class="btn secondary" href="#gatekeeper">See the break</a>
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-mark" href="#top">
+          <img src="../assets/icons/icon-48.png" alt="">
+          CoffeeCat
+        </a>
+        <nav class="nav-links" aria-label="Sections">
+          <a href="#focus">Focus</a>
+          <a href="#gatekeeper">Break</a>
+          <a href="#buddy">Buddy</a>
+          <a href="#privacy">Privacy</a>
+          <a href="#install">Install</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <!-- The wordmark spans the full measure and the two-column row sits
+             under it. Boxed into a half-width column it could only ever be
+             headline-sized, which is what made it read as a paragraph rather
+             than a mark. -->
+        <div class="wrap hero-grid">
+          <p class="eyebrow" data-reveal>Chrome extension</p>
+          <h1 data-reveal>CoffeeCat</h1>
+
+          <div class="hero-lower">
+            <div class="hero-copy">
+              <p class="tagline" data-reveal>A cozy pixel coffee cat for your browser.</p>
+              <p class="lede" data-reveal>Keep a tiny companion on the pages you browse, start a gentle Focus Coffee timer, and watch the cup drain as time runs out.</p>
+              <div class="hero-actions" data-reveal>
+                <a class="btn" href="#install">Load locally</a>
+                <a class="btn secondary" href="#gatekeeper">See the break</a>
+              </div>
+            </div>
+
+            <figure class="browser-demo" data-reveal role="img" aria-label="A mock web page with the CoffeeCat buddy and its coffee cup sitting in the corner. The cup slowly drains.">
+              <div class="browser-bar">
+                <span></span>
+                <span></span>
+                <span></span>
+                <strong>coffeecat.local</strong>
+              </div>
+              <div class="browser-page">
+                <div class="feed-lines" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <div class="demo-cat">
+                  <img src="../assets/coffeecat-buddy.png" alt="">
+                  <!-- Same four sprite layers the extension overlays, stacked in
+                       the same order. See tools/render_mug.py. -->
+                  <span class="demo-cup" aria-hidden="true">
+                    <img class="mug-layer" src="../assets/mug/mug-back.png" alt="">
+                    <span class="mug-window">
+                      <img id="demo-fill" class="mug-liquid" src="../assets/mug/mug-fill.png" alt="">
+                    </span>
+                    <img class="mug-layer" src="../assets/mug/mug-front.png" alt="">
+                  </span>
+                </div>
+              </div>
+            </figure>
           </div>
         </div>
-
-        <figure class="browser-demo" role="img" aria-label="A mock web page with the CoffeeCat buddy and its coffee cup sitting in the corner. The cup slowly drains.">
-          <div class="browser-bar">
-            <span></span>
-            <span></span>
-            <span></span>
-            <strong>coffeecat.local</strong>
-          </div>
-          <div class="browser-page">
-            <div class="feed-lines" aria-hidden="true">
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
-            <div class="demo-cat">
-              <img src="../assets/coffeecat-buddy.png" alt="">
-              <!-- Same four sprite layers the extension overlays, stacked in
-                   the same order. See tools/render_mug.py. -->
-              <span class="demo-cup" aria-hidden="true">
-                <img class="mug-layer" src="../assets/mug/mug-back.png" alt="">
-                <span class="mug-window">
-                  <img id="demo-fill" class="mug-liquid" src="../assets/mug/mug-fill.png" alt="">
-                </span>
-                <img class="mug-layer" src="../assets/mug/mug-front.png" alt="">
-              </span>
-            </div>
-          </div>
-        </figure>
       </section>
 
-      <section class="wrap" id="focus">
-        <div class="section-head">
-          <p class="eyebrow">Focus Coffee</p>
-          <h2>Pick a brew. The cup is the timer.</h2>
-          <p>The cup drains as your session runs out, so time passing is something you glance at instead of something that interrupts you. Four brews, chosen from the toolbar popup.</p>
+      <section class="act" id="focus">
+        <div class="wrap act-grid">
+          <div class="act-label" data-reveal>
+            <span class="num">(01)</span>
+            <p class="eyebrow">Focus Coffee</p>
+          </div>
+          <div class="act-body">
+            <div class="section-head" data-reveal>
+              <h2>Pick a brew. The cup is the timer.</h2>
+              <p>The cup drains as your session runs out, so time passing is something you glance at instead of something that interrupts you. Four brews, chosen from the toolbar popup.</p>
+            </div>
+
+            <dl class="index">
+              <div class="index-row" data-reveal>
+                <dt>Espresso Shot</dt>
+                <dd class="dose">25 min</dd>
+                <dd class="note">25 minutes, straight through.</dd>
+              </div>
+              <div class="index-row" data-reveal>
+                <dt>Slow Pour</dt>
+                <dd class="dose">45 min</dd>
+                <dd class="note">45 minutes, then a 5-minute coffee flood.</dd>
+              </div>
+              <div class="index-row" data-reveal>
+                <dt>Cold Brew</dt>
+                <dd class="dose">90 min</dd>
+                <dd class="note">90 minutes. Deep work, no interruptions.</dd>
+              </div>
+              <div class="index-row" data-reveal>
+                <dt>Decaf</dt>
+                <dd class="dose">15 min</dd>
+                <dd class="note">15 minutes. A low-pressure start.</dd>
+              </div>
+            </dl>
+          </div>
         </div>
-
-        <dl class="menu-list">
-          <div class="menu-item">
-            <dt>Espresso Shot</dt>
-            <dd class="dose">25 min</dd>
-            <dd>25 minutes, straight through.</dd>
-          </div>
-          <div class="menu-item">
-            <dt>Slow Pour</dt>
-            <dd class="dose">45 min</dd>
-            <dd>45 minutes, then a 5-minute coffee flood.</dd>
-          </div>
-          <div class="menu-item">
-            <dt>Cold Brew</dt>
-            <dd class="dose">90 min</dd>
-            <dd>90 minutes. Deep work, no interruptions.</dd>
-          </div>
-          <div class="menu-item">
-            <dt>Decaf</dt>
-            <dd class="dose">15 min</dd>
-            <dd>15 minutes. A low-pressure start.</dd>
-          </div>
-        </dl>
       </section>
 
-      <section id="gatekeeper" class="wrap">
-        <div class="band">
-          <div class="band-copy">
+      <!-- The one dark act. The coffee flood is the only moment on the page
+           that depicts the screen going dark, so it is the only section that
+           earns the inverted field. -->
+      <section class="act act--dark" id="gatekeeper">
+        <div class="wrap act-grid">
+          <div class="act-label" data-reveal>
+            <span class="num">(02)</span>
             <p class="eyebrow">V2 Gentle Gatekeeper</p>
-            <h2>Coffee's gone. Tiny break.</h2>
-            <p>CoffeeCat V2 turns the end of a Slow Pour into a humane interruption. Wherever you are browsing, the page fills with semi-transparent coffee, CoffeeCat steps in, and a five-minute break begins. Refill when you are ready, or snooze once.</p>
-            <p>The page stays visible underneath. Nothing is blocked, closed, or sent anywhere.</p>
           </div>
-          <figure class="flood-preview" role="img" aria-label="Preview of the coffee flood break: coffee rises up a mock page while CoffeeCat waits at the bottom.">
-            <div class="flood-page">
-              <span></span>
-              <span></span>
-              <span></span>
-              <div class="flood-coffee"></div>
-              <img src="../assets/coffeecat-buddy.png" alt="">
+          <div class="act-body band">
+            <div class="band-copy" data-reveal>
+              <h2>Coffee's gone. Tiny break.</h2>
+              <p>CoffeeCat V2 turns the end of a Slow Pour into a humane interruption. Wherever you are browsing, the page fills with semi-transparent coffee, CoffeeCat steps in, and a five-minute break begins. Refill when you are ready, or snooze once.</p>
+              <p>The page stays visible underneath. Nothing is blocked, closed, or sent anywhere.</p>
             </div>
-            <strong>Coffee flood break</strong>
-            <small>The feed stays visible, but the coffee takes over.</small>
-          </figure>
+            <figure class="flood-preview" data-reveal role="img" aria-label="Preview of the coffee flood break: coffee rises up a mock page while CoffeeCat waits at the bottom.">
+              <div class="flood-page">
+                <span></span>
+                <span></span>
+                <span></span>
+                <div class="flood-coffee"></div>
+                <img src="../assets/coffeecat-buddy.png" alt="">
+              </div>
+              <figcaption>
+                <strong>Coffee flood break</strong>
+                <small>The feed stays visible, but the coffee takes over.</small>
+              </figcaption>
+            </figure>
+          </div>
         </div>
       </section>
 
-      <section class="wrap" id="buddy">
-        <div class="section-head">
-          <p class="eyebrow">Browser buddy</p>
-          <h2>A desk pet that lives on the page.</h2>
-          <p>CoffeeCat sits on normal web pages rather than the browser frame, so it is always in the same place you are already looking.</p>
-        </div>
+      <section class="act" id="buddy">
+        <div class="wrap act-grid">
+          <div class="act-label" data-reveal>
+            <span class="num">(03)</span>
+            <p class="eyebrow">Browser buddy</p>
+          </div>
+          <div class="act-body">
+            <div class="section-head" data-reveal>
+              <h2>A desk pet that lives on the page.</h2>
+              <p>CoffeeCat sits on normal web pages rather than the browser frame, so it is always in the same place you are already looking.</p>
+            </div>
 
-        <div class="card-grid">
-          <article class="card">
-            <h3>Drag anywhere</h3>
-            <p>Move the cat wherever it suits the page. The position is remembered across tabs and sessions, and one click resets it to the corner.</p>
-          </article>
-          <article class="card">
-            <h3>Three sizes</h3>
-            <p>Small, medium, or large — 64, 88, or 116 pixels — depending on whether you want a companion or a barely-there presence.</p>
-          </article>
-          <article class="card">
-            <h3>Click to sip and purr</h3>
-            <p>Clicking the cat plays a short sip animation and a soft synthesized purr. No audio files, no autoplay, nothing plays until you click.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="wrap" id="privacy">
-        <div class="section-head">
-          <p class="eyebrow">Privacy</p>
-          <h2>Local by default.</h2>
-          <p>CoffeeCat has no backend, no analytics, no accounts, and no social login. There is nowhere for your data to go.</p>
-        </div>
-
-        <div class="card-grid two-up">
-          <article class="card">
-            <h3>What it stores</h3>
-            <p>Whether the cat is shown, its size, its position on the page, the current timer state, and local focus stats — sessions completed, minutes protected, cups finished. All of it in Chrome extension storage.</p>
-          </article>
-          <article class="card">
-            <h3>What it never touches</h3>
-            <p>CoffeeCat does not collect browsing history or page content, and requests exactly one permission: <code>storage</code>.</p>
-          </article>
+            <div class="rows">
+              <article class="row" data-reveal>
+                <span class="row-num" aria-hidden="true">01</span>
+                <h3>Drag anywhere</h3>
+                <p>Move the cat wherever it suits the page. The position is remembered across tabs and sessions, and one click resets it to the corner.</p>
+              </article>
+              <article class="row" data-reveal>
+                <span class="row-num" aria-hidden="true">02</span>
+                <h3>Three sizes</h3>
+                <p>Small, medium, or large — 64, 88, or 116 pixels — depending on whether you want a companion or a barely-there presence.</p>
+              </article>
+              <article class="row" data-reveal>
+                <span class="row-num" aria-hidden="true">03</span>
+                <h3>Click to sip and purr</h3>
+                <p>Clicking the cat plays a short sip animation and a soft synthesized purr. No audio files, no autoplay, nothing plays until you click.</p>
+              </article>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="wrap" id="install">
-        <div class="section-head">
-          <p class="eyebrow">Install</p>
-          <h2>Load it locally.</h2>
-          <p>CoffeeCat is not published to the Chrome Web Store yet. For now, load the unpacked folder.</p>
-        </div>
+      <section class="act" id="privacy">
+        <div class="wrap act-grid">
+          <div class="act-label" data-reveal>
+            <span class="num">(04)</span>
+            <p class="eyebrow">Privacy</p>
+          </div>
+          <div class="act-body">
+            <div class="section-head" data-reveal>
+              <h2>Local by default.</h2>
+              <p>CoffeeCat has no backend, no analytics, no accounts, and no social login. There is nowhere for your data to go.</p>
+            </div>
 
-        <div class="install-card">
-          <ol>
-            <!-- Each step's content is wrapped in a single <span>: the <li> is a
-                 grid container, so an inline <code> sibling would otherwise
-                 become its own grid item and drop onto the next row. -->
-            <li><span>Open <code>chrome://extensions</code>.</span></li>
-            <li><span>Turn on Developer mode.</span></li>
-            <li><span>Choose Load unpacked.</span></li>
-            <li><span>Select the CoffeeCat folder.</span></li>
-            <li><span>Visit a normal web page and start Focus Coffee.</span></li>
-          </ol>
+            <div class="rows">
+              <article class="row" data-reveal>
+                <span class="row-num" aria-hidden="true">01</span>
+                <h3>What it stores</h3>
+                <p>Whether the cat is shown, its size, its position on the page, the current timer state, and local focus stats — sessions completed, minutes protected, cups finished. All of it in Chrome extension storage.</p>
+              </article>
+              <article class="row" data-reveal>
+                <span class="row-num" aria-hidden="true">02</span>
+                <h3>What it never touches</h3>
+                <p>CoffeeCat does not collect browsing history or page content, and requests exactly one permission: <code>storage</code>.</p>
+              </article>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section class="wrap" id="notes">
-        <div class="notes">
-          <h3>Technical notes</h3>
-          <p>CoffeeCat is a Manifest V3 extension. It requests the <code>storage</code> permission only, and runs on <code>http</code> and <code>https</code> pages.</p>
-          <p>Chrome does not allow extensions to draw freely in the native tab strip, so CoffeeCat appears as an on-page buddy instead of a character that walks along your tabs.</p>
-          <p>The coffee flood is a local, page-level break reminder. It is not a network blocker and does not prevent you from browsing.</p>
+      <section class="act" id="install">
+        <div class="wrap act-grid">
+          <div class="act-label" data-reveal>
+            <span class="num">(05)</span>
+            <p class="eyebrow">Install</p>
+          </div>
+          <div class="act-body">
+            <div class="section-head" data-reveal>
+              <h2>Load it locally.</h2>
+              <p>CoffeeCat is not published to the Chrome Web Store yet. For now, load the unpacked folder.</p>
+            </div>
+
+            <ol class="steps">
+              <!-- Each step's content is wrapped in a single <span>: the <li> is a
+                   grid container, so an inline <code> sibling would otherwise
+                   become its own grid item and drop onto the next row. -->
+              <li data-reveal><span>Open <code>chrome://extensions</code>.</span></li>
+              <li data-reveal><span>Turn on Developer mode.</span></li>
+              <li data-reveal><span>Choose Load unpacked.</span></li>
+              <li data-reveal><span>Select the CoffeeCat folder.</span></li>
+              <li data-reveal><span>Visit a normal web page and start Focus Coffee.</span></li>
+            </ol>
+          </div>
+        </div>
+      </section>
+
+      <section class="act act--notes" id="notes">
+        <div class="wrap act-grid">
+          <div class="act-label" data-reveal>
+            <span class="num">(06)</span>
+            <p class="eyebrow">Technical notes</p>
+          </div>
+          <div class="act-body notes" data-reveal>
+            <p>CoffeeCat is a Manifest V3 extension. It requests the <code>storage</code> permission only, and runs on <code>http</code> and <code>https</code> pages.</p>
+            <p>Chrome does not allow extensions to draw freely in the native tab strip, so CoffeeCat appears as an on-page buddy instead of a character that walks along your tabs.</p>
+            <p>The coffee flood is a local, page-level break reminder. It is not a network blocker and does not prevent you from browsing.</p>
+          </div>
         </div>
       </section>
     </main>
@@ -195,6 +272,7 @@
           CoffeeCat
         </span>
         <p>A tiny coffee cat that chills with you while you browse.</p>
+        <small>Set in Geist and Geist Mono by Vercel, licensed under the SIL Open Font License.</small>
       </div>
     </footer>
 

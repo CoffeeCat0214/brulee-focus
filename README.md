@@ -23,7 +23,15 @@ CoffeeCat is a tiny Chrome extension that puts a pixel coffee cat buddy on the p
 
 ## Website
 
-Open `site/index.html` in a browser to preview the CoffeeCat V2 launch page. It uses the same CoffeeCat assets and demonstrates the draining cup and coffee-flood break concept without calling Chrome extension APIs.
+Serve the **repo root** and open `http://localhost:8000/site/`:
+
+```
+python3 -m http.server 8000
+```
+
+The page reaches back into `../assets` and `../src`, so opening `site/index.html` straight off the filesystem leaves the sprites and the mug geometry 404ing. It uses the same CoffeeCat assets and demonstrates the draining cup and coffee-flood break concept without calling Chrome extension APIs.
+
+Type is [Geist and Geist Mono](https://github.com/vercel/geist-font), vendored as variable `.woff2` under `site/fonts/` and licensed under the SIL OFL (`site/fonts/LICENSE.txt`). They are self-hosted rather than CDN-linked so the site keeps the extension's no-network property.
 
 ## Privacy
 

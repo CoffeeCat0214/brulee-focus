@@ -58,3 +58,65 @@ function sync() {
 document.addEventListener("visibilitychange", sync);
 reduceMotion.addEventListener("change", sync);
 sync();
+
+/* ---------- Scroll reveal ----------
+   The one piece of motion both reference sites lean on. Kept deliberately
+   small -- 12px and 600ms -- because an obvious fade-up on every element is
+   its own kind of tell.
+
+   The hidden state is applied from here rather than from styles.css on
+   purpose. As a static rule, `[data-reveal] { opacity: 0 }` hands anyone
+   without JS -- or anyone whose JS fails -- a blank page. Applied from script,
+   the markup is visible by default and only ever hidden by code that is
+   already running and can therefore also un-hide it. */
+
+const revealTargets = Array.from(document.querySelectorAll("[data-reveal]"));
+
+function show(el) {
+  el.classList.remove("is-hidden");
+  el.classList.add("is-revealed");
+}
+
+if ("IntersectionObserver" in window && !reduceMotion.matches) {
+  for (const el of revealTargets) {
+    el.classList.add("is-hidden");
+  }
+
+  const observer = new IntersectionObserver(
+    (entries, self) => {
+      // Stagger within the batch, not against a global clock: a section that
+      // scrolls into view as a unit should cascade, but a single element
+      // arriving on its own should not sit waiting for a queue.
+      let step = 0;
+
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+
+        // Unobserve immediately -- this fires once per element, and leaving
+        // the observer live means re-entering the viewport re-runs it.
+        self.unobserve(entry.target);
+        window.setTimeout(show, step * 60, entry.target);
+        step += 1;
+      }
+    },
+    // The bottom inset holds the reveal until the element is properly on
+    // screen rather than clipping the viewport edge.
+    { rootMargin: "0px 0px -8% 0px", threshold: 0.1 }
+  );
+
+  for (const el of revealTargets) {
+    observer.observe(el);
+  }
+
+  // Turning on reduced motion mid-visit must not strand whatever has not been
+  // revealed yet at opacity 0.
+  reduceMotion.addEventListener("change", () => {
+    if (!reduceMotion.matches) return;
+
+    observer.disconnect();
+
+    for (const el of revealTargets) {
+      el.classList.remove("is-hidden");
+    }
+  });
+}

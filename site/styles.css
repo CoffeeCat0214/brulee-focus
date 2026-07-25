@@ -1,246 +1,427 @@
 /* CoffeeCat marketing site.
 
-   Every value the site uses lives in the token block below. Nothing after it
-   should contain a raw hex literal.
+   Direction: editorial paper with one dark act, drawn from studio-size.com and
+   humanmade.co.jp. Both of those sites reach "designed" the same way, and it is
+   almost entirely subtractive:
 
-   The palette is not invented. It is the CAT_RAMP from tools/render_mug.py,
-   which derives its stops by decoding the buddy illustration and averaging
-   opaque pixels bucketed by luminance. That file also records why the old site
-   looked pasted-on: it was outlined in #4a2b1d, a flat brown, when the cat's
-   own darkest edge is the plum #470928. Wrong hue family. Every outline here
-   is the plum.
+     - one grotesque, three weights, nothing else
+     - five or six colours for the whole page
+     - no strokes and no box-shadows anywhere; grouping comes from alignment,
+       hairline rules and whitespace instead of from enclosure
+     - very tight negative tracking on display type, wide positive tracking on
+       small uppercase labels
+     - one slow, decisive easing curve used for everything
 
-   Visual direction: the heavy sticker outlines and hard offset shadows stay --
-   they are the site's signature -- but they now sit on a strict 4pt grid with a
-   real modular type scale, which is what separates "chunky" from "unfinished". */
+   The previous sheet did the opposite: a 3-4px plum stroke around every box, a
+   hard offset "sticker" shadow under each one, two radial gradients on the body
+   and ~20 colour tokens. Enclosing a thing requires no compositional decision,
+   which is exactly why generated UI reaches for it. Every deletion below trades
+   an enclosure for an alignment.
+
+   What survived from the old sheet, and why:
+     - --demo-top / --demo-bot / --on-demo. They depict a page being browsed,
+       not site chrome, so they are theme-constant by design (see .browser-page).
+     - The .demo-cup geometry block. Those --win-* / --liq-* values are written
+       by script.js from tools/render_mug.py output; the site must not drift
+       from the sprite the extension actually ships.
+     - The accent. #a85a2e was contrast-audited in src/popup.css:39-45. */
+
+/* ---------- Fonts ---------- */
+/* Vendored under site/fonts/ (SIL OFL, see fonts/LICENSE.txt). Self-hosted
+   rather than CDN-linked: the extension has no backend and no network
+   dependency, and the site should not acquire one. url()s resolve against this
+   stylesheet, so they work whether the repo root is served or index.html is
+   opened directly. */
+
+@font-face {
+  font-family: "Geist";
+  src: url("fonts/Geist-Variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  src: url("fonts/GeistMono-Variable.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ---------- Tokens ---------- */
 
 :root {
-  /* Type. Inter used to be named here and never loaded, so every visitor got
-     the fallback anyway. Matching the extension's stack (src/popup.css:12)
-     removes the lie and costs zero bytes. */
-  --font: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* 4pt grid, extended past the popup's --s6 for page-scale rhythm. */
+  /* The display unit. Both reference sites set `html { font-size: ~0.694vw }`
+     so the whole composition scales as one object -- and in doing so they
+     override the visitor's browser font-size preference (WCAG 1.4.4). This
+     keeps the proportional feel where it does the work (the wordmark, the
+     section numerals, the band rhythm) and leaves body copy in rem, where the
+     preference actually matters.
+
+     0.72vw lands at ~10.4px on a 1440 comp; the clamp floor is what keeps the
+     wordmark from collapsing on a phone and the ceiling stops it running away
+     on a 2560 display. */
+  --u: clamp(4px, 0.72vw, 11px);
+
+  /* 4pt grid, unchanged -- it was never the problem. */
   --s1: 4px;   --s2: 8px;   --s3: 12px;  --s4: 16px;
   --s5: 20px;  --s6: 24px;  --s7: 32px;  --s8: 48px;
-  --s9: 64px;  --s10: 96px; --s11: 128px;
+  --s9: 64px;  --s10: 96px;
 
-  /* --- Brand constants: sampled from CAT_RAMP, identical in both themes --- */
-  --cream: #fce0c1;
-  --bounce: #f2ad74;
-  --fur: #e89c65;
-  --blush: #612c2d;
-  --plum-red: #531a26;
-  --plum: #470928;
-  /* Accent fill is theme-constant: #a85a2e carries 5.06:1 on white.
-     Rationale and contrast audit in src/popup.css:39-45. */
+  /* Six values for the entire page. Contrast against --paper, all AA at body
+     size: ink 17.2:1, ink-2 6.7:1, ink-3 4.8:1, accent-text 5.9:1. */
+  --paper: #f4f2ef;
+  --panel: #faf9f7;
+  --ink: #16130f;
+  --ink-2: #5c534b;
+  --ink-3: #736b62;
+  --rule: rgba(22, 19, 15, 0.12);
+  --rule-strong: rgba(22, 19, 15, 0.24);
+
+  /* Fill vs. text are separate values. #a85a2e carries white at 5.0:1 as a
+     button fill, but only 4.5:1 as text on --paper -- too close to the line for
+     15px mono. The darker stop is the popup's --accent-label. */
   --accent: #a85a2e;
   --accent-hover: #96502a;
+  --accent-text: #8f4a22;
   --on-accent: #ffffff;
 
-  /* The demo "web page" surface. Deliberately does NOT flip with the theme:
-     it depicts a page being browsed, not site chrome. Both stops are real
-     ramp entries, so the orange fur reads as lit by its own shadow family
-     instead of floating on an unrelated forest green. */
-  --demo-top: var(--plum-red);
-  --demo-bot: var(--plum);
+  /* The demo "web page" surface. Deliberately constant: it depicts a page being
+     browsed, not site chrome. Both stops are real CAT_RAMP entries, so the
+     orange fur reads as lit by its own shadow family. */
+  --demo-top: #531a26;
+  --demo-bot: #470928;
   --on-demo: rgba(255, 248, 239, 0.34);
   --on-demo-faint: rgba(255, 248, 239, 0.07);
 
-  /* --- Semantic tokens: these flip in dark mode --- */
-  --paper: #fffdf9;
-  --surface: #fff8ef;
-  --raised: #fffdf8;
-  --label: #241812;
-  --label-secondary: #6f594d;
-  --label-tertiary: #8e7b70;
-  --outline: var(--plum);
-  --outline-a: 71, 9, 40;
-  --hairline: rgba(71, 9, 40, 0.14);
-  --code-bg: #ffe2b8;
-  --code-label: var(--label);
-
-  /* Modular scale, ratio ~1.28. Replaces the old ad-hoc 13/18/22/24/44/94. */
-  --t-caption: 13px;
-  --t-small: 15px;
-  --t-body: 17px;
+  /* Type. Display is driven off --u; everything from the lede down is fixed so
+     it respects the browser's font-size setting. */
+  /* The vw term only bites below ~380px, where --u has bottomed out on its
+     clamp floor and "CoffeeCat" at 18u would run 17px past the measure on a
+     320px screen. Above that the min() always picks the --u term. */
+  --t-display: min(calc(var(--u) * 18), 19vw);
+  --t-h2: clamp(30px, 3.6vw, 44px);
+  --t-h3: 21px;
   --t-lead: 20px;
-  --t-h3: 26px;
-  --t-h2: clamp(28px, 3.4vw, 34px);
-  --t-h1: clamp(34px, 4.4vw, 46px);
-  --t-display: clamp(52px, 7vw, 84px);
+  --t-body: 17px;
+  --t-small: 15px;
+  --t-label: 11px;
 
-  --r-sm: 8px;
-  --r-md: 12px;
-  --r-lg: 16px;
+  /* Radii are 0 for structure. The single soft value is reserved for the two
+     panels that depict a screen, where it reads as a device corner rather than
+     as decoration. */
+  --r-panel: 18px;
 
-  /* The extension's curve, so site and product move the same way. */
-  --ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --dur: 240ms;
+  /* studio-size's curve, at their 300ms. The extension keeps its own HIG timing
+     (src/popup.css) -- product chrome and an editorial page have different
+     jobs, and pretending otherwise is what makes marketing sites feel like
+     settings screens. */
+  --ease: cubic-bezier(0.51, 0.01, 0.2, 1);
+  --dur: 300ms;
 
-  /* Sticker depth. The hard offset is the signature; the soft ambient layer
-     underneath is what keeps it from looking like clip art. */
-  --lift-lg: 14px;
-  --lift-md: 9px;
-  --lift-sm: 6px;
-  --sticker-lg:
-    0 var(--lift-lg) 0 rgba(var(--outline-a), 0.16),
-    0 28px 62px rgba(var(--outline-a), 0.20);
-  --sticker-md:
-    0 var(--lift-md) 0 rgba(var(--outline-a), 0.14),
-    0 18px 40px rgba(var(--outline-a), 0.16);
-  --sticker-sm:
-    0 var(--lift-sm) 0 rgba(var(--outline-a), 0.13),
-    0 12px 26px rgba(var(--outline-a), 0.12);
+  --nav-h: 60px;
 
   color-scheme: light;
-  font-family: var(--font);
-  color: var(--label);
-  background: var(--surface);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --paper: #1c1b19;
-    --surface: #1c1b19;
-    --raised: #26221f;
-    --label: #f5efe7;
-    --label-secondary: #c9bcb1;
-    --label-tertiary: #9c8d82;
-    /* A plum outline disappears against a near-black page. Inverting the
-       stroke to the ramp's lightest stop keeps the sticker silhouette
-       readable, which is the whole point of the outline. */
-    --outline: var(--cream);
-    --outline-a: 252, 224, 193;
-    --hairline: rgba(252, 224, 193, 0.16);
-    --code-bg: rgba(252, 224, 193, 0.12);
-    --code-label: var(--cream);
-  }
-}
+/* No `prefers-color-scheme` block. "One dark act" IS the structure: inverting
+   the whole page would flatten the contrast between section (02) and the rest,
+   which is the only rhythm the page has. Neither reference site ships a dark
+   mode either; each commits to one look. */
+
+/* ---------- Base ---------- */
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+  /* Anchor targets must clear the sticky header. */
+  scroll-padding-top: calc(var(--nav-h) + var(--s6));
+}
+
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 14% 6%, rgba(242, 173, 116, 0.24), transparent 34%),
-    radial-gradient(circle at 88% 92%, rgba(97, 44, 45, 0.10), transparent 42%),
-    var(--surface);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-family: var(--font);
+  font-size: var(--t-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Geist ships proportional figures by default; the page has enough numerals
+     (times, sizes, step counts) that lining them up is worth one declaration. */
+  font-variant-numeric: tabular-nums;
 }
 
-main {
-  display: block;
+h1, h2, h3, p, ol, ul, figure, figcaption, dl, dd {
+  margin: 0;
 }
 
-/* One container rule for every band on the page. */
+/* Deliberately NO `img { max-width: 100% }` reset here. Every image on this
+   page sets its own width, and .mug-liquid is sized *wider than its own clip
+   window* on purpose -- --liq-w is 10000/FILL_WINDOW.width, ~181%, which is
+   what rebuilds the sprite at full cup-box scale inside overflow:hidden. A
+   blanket max-width clamps that to 100% and the coffee renders as a narrow
+   column stuck to the left wall of the mug. */
+
+/* One container rule for every band on the page. Sections are full-width so a
+   dark one bleeds edge to edge with no negative-margin trick; only .wrap
+   constrains the measure. */
 .wrap {
   width: min(1120px, calc(100vw - var(--s8)));
   margin: 0 auto;
 }
 
-section {
-  padding-block: var(--s10);
-}
-
-.hero {
-  /* Capped rather than a bare 92vh: on a tall display the old rule opened a
-     screenful of dead air above the headline. */
-  min-height: min(78vh, 680px);
-  display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
-  gap: var(--s9);
-  align-items: center;
-  padding-block: var(--s8) var(--s9);
-}
-
-.hero-copy {
-  display: grid;
-  gap: var(--s4);
-  justify-items: start;
-}
-
-/* The name carries the display size; the promise sits one step down. Splitting
-   them keeps the h1 short enough to stay on one line, which is what makes the
-   wordmark read as a mark rather than a paragraph. */
-.tagline {
-  color: var(--label);
-  font-size: var(--t-h1);
-  font-weight: 700;
-  line-height: 1.12;
-  letter-spacing: -0.02em;
-  max-width: 20ch;
-  margin-top: var(--s1);
-}
-
 /* ---------- Type ---------- */
 
-h1, h2, h3, p, ol, ul, figure, dl, dd {
-  margin: 0;
-}
-
-.eyebrow {
-  color: var(--blush);
-  font-size: var(--t-caption);
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-@media (prefers-color-scheme: dark) {
-  .eyebrow { color: var(--bounce); }
-}
-
 h1 {
-  color: var(--label);
+  color: var(--ink);
   font-size: var(--t-display);
-  font-weight: 800;
-  line-height: 0.94;
-  letter-spacing: -0.03em;
+  font-weight: 500;
+  line-height: 0.84;
+  /* Display tracking has to come in hard as size goes up -- this is the single
+     most visible difference between set type and default type. */
+  letter-spacing: -0.045em;
 }
 
 h2 {
-  color: var(--label);
+  color: var(--ink);
   font-size: var(--t-h2);
-  font-weight: 800;
-  line-height: 1.06;
-  letter-spacing: -0.02em;
+  font-weight: 500;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
 }
 
 h3 {
-  color: var(--label);
+  color: var(--ink);
   font-size: var(--t-h3);
-  font-weight: 700;
-  line-height: 1.18;
-  letter-spacing: -0.015em;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
 }
 
 p {
-  color: var(--label-secondary);
-  font-size: var(--t-body);
-  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+/* The inverse of display tracking: at 11px, uppercase needs air to stay
+   legible, and the wide track is what marks it as a label rather than as small
+   body copy. */
+.eyebrow,
+.num,
+.row-num {
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .lede {
   font-size: var(--t-lead);
-  line-height: 1.55;
-  max-width: 46ch;
+  line-height: 1.5;
+  max-width: 42ch;
+}
+
+code {
+  /* Tight horizontal padding: at 0.4em the trailing punctuation after an
+     inline <code> visibly detaches from it. */
+  padding: 0.15em 0.28em;
+  border-radius: 4px;
+  background: rgba(22, 19, 15, 0.06);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+/* ---------- Nav ---------- */
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(14px);
+  -webkit-backdrop-filter: saturate(1.4) blur(14px);
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s6);
+  height: var(--nav-h);
+}
+
+.nav-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--ink);
+  font-size: var(--t-small);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.nav-mark img {
+  width: 20px;
+  height: 20px;
+  image-rendering: pixelated;
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--s6);
+}
+
+.nav-links a {
+  color: var(--ink-3);
+  font-size: var(--t-small);
+  text-decoration: none;
+  transition: color var(--dur) var(--ease);
+}
+
+.nav-links a:hover {
+  color: var(--ink);
+}
+
+/* ---------- Buttons ---------- */
+/* Scoped to .btn. Styling the bare `a` element -- as the old sheet did -- turned
+   every link on the page into a 44px filled button, footer and prose included. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 0 var(--s6);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--t-small);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  text-decoration: none;
+  transition:
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+.btn:hover {
+  background: var(--accent-hover);
+}
+
+/* A hairline and a colour shift, not a raised slab. */
+.btn.secondary {
+  background: transparent;
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+
+.btn.secondary:hover {
+  background: rgba(22, 19, 15, 0.04);
+  border-color: var(--ink);
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* ---------- Section spine ---------- */
+/* Every section is a numbered act: a mono label in a narrow left column, the
+   content in a wide right one. This is what replaced "each section is a card in
+   a card grid" -- the page now has a structure instead of a stack. */
+
+.act {
+  padding-block: calc(var(--u) * 11);
+  border-top: 1px solid var(--rule);
+}
+
+.act-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+  gap: var(--s8);
+  align-items: start;
+}
+
+/* The label rides along beside its content, which is what gives a long section
+   a sense of place. align-self:start is load-bearing -- a stretched grid item
+   cannot stick. */
+.act-label {
+  position: sticky;
+  top: calc(var(--nav-h) + var(--s7));
+  display: grid;
+  gap: var(--s2);
+  align-self: start;
+}
+
+.act-body {
+  display: grid;
+  gap: var(--s8);
 }
 
 .section-head {
   display: grid;
-  gap: var(--s3);
-  max-width: 58ch;
-  margin-bottom: var(--s8);
+  gap: var(--s4);
+  max-width: 52ch;
 }
 
-/* ---------- Buttons ---------- */
-/* Scoped to .btn. The old sheet styled the bare `a` element, which turned
-   every link on the page -- including prose and footer links -- into a
-   44px-tall filled button. */
+/* ---------- Hero ---------- */
+
+.hero {
+  border-top: 0;
+  padding-block: calc(var(--u) * 9) calc(var(--u) * 11);
+}
+
+.hero-grid {
+  display: grid;
+  gap: var(--s5);
+}
+
+/* align-items:start, not end. The demo panel is much taller than the copy, and
+   bottom-aligning them opened ~200px of dead air between the wordmark and the
+   tagline -- a hole in the middle of the reading path. Trailing whitespace at
+   the foot of a short column is normal; a gap mid-sentence is not. */
+.hero-lower {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(300px, 1.15fr);
+  gap: var(--s9);
+  align-items: start;
+  margin-top: var(--s7);
+}
+
+/* The children carry their own `max-width` in ch, so they do not need
+   `justify-items: start` to keep a sane measure -- and leaving it off lets
+   .hero-actions fill the column, which is what the full-width button rule
+   under 640px hangs off. */
+.hero-copy {
+  display: grid;
+  gap: var(--s5);
+  padding-bottom: var(--s4);
+}
+
+.tagline {
+  color: var(--ink);
+  font-size: var(--t-lead);
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  max-width: 24ch;
+}
 
 .hero-actions {
   display: flex;
@@ -249,106 +430,43 @@ p {
   margin-top: var(--s2);
 }
 
-.btn {
-  display: inline-flex;
-  align-items: center;
-  min-height: 48px;
-  padding: 0 var(--s6);
-  border: 3px solid var(--outline);
-  border-radius: var(--r-sm);
-  background: var(--accent);
-  color: var(--on-accent);
-  font-size: var(--t-body);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-decoration: none;
-  box-shadow: 0 var(--lift-sm) 0 rgba(var(--outline-a), 0.22);
-  transition:
-    transform var(--dur) var(--ease),
-    box-shadow var(--dur) var(--ease),
-    background-color var(--dur) var(--ease);
-}
-
-.btn.secondary {
-  background: var(--paper);
-  color: var(--label);
-}
-
-/* The sticker idiom implies a physical press: the button travels down by
-   exactly the amount its hard shadow shrinks, so the shadow stays pinned to
-   the page while the cap moves. */
-.btn:hover {
-  background: var(--accent-hover);
-  transform: translateY(3px);
-  box-shadow: 0 3px 0 rgba(var(--outline-a), 0.22);
-}
-
-.btn.secondary:hover {
-  background: var(--surface);
-}
-
-.btn:active {
-  transform: translateY(var(--lift-sm));
-  box-shadow: 0 0 0 rgba(var(--outline-a), 0.22);
-}
-
-a:focus-visible,
-button:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 3px;
-}
-
-.textlink {
-  color: var(--label);
-  font-weight: 600;
-  text-decoration-color: var(--hairline);
-  text-underline-offset: 3px;
-  transition: color var(--dur) var(--ease);
-}
-
-.textlink:hover {
-  color: var(--accent);
-}
-
 /* ---------- Hero browser demo ---------- */
 
 .browser-demo {
   overflow: hidden;
-  border: 4px solid var(--outline);
-  border-radius: var(--r-lg);
-  background: var(--raised);
-  box-shadow: var(--sticker-lg);
+  border-radius: var(--r-panel);
+  background: var(--panel);
 }
 
 .browser-bar {
   display: flex;
   align-items: center;
   gap: var(--s2);
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 var(--s4);
-  border-bottom: 3px solid var(--outline);
-  background: var(--cream);
+  border-bottom: 1px solid var(--rule);
 }
 
+/* Hairline outlines rather than the old 2px plum discs -- at this size a heavy
+   stroke reads as three loud dots instead of as window furniture. */
 .browser-bar span {
-  width: 10px;
-  height: 10px;
-  border: 2px solid var(--plum);
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--rule-strong);
   border-radius: 50%;
-  background: var(--surface);
 }
 
 .browser-bar strong {
   margin-left: var(--s2);
-  color: var(--plum);
+  color: var(--ink-3);
   font-family: var(--font-mono);
-  font-size: var(--t-caption);
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .browser-page {
   position: relative;
-  min-height: 460px;
+  min-height: 420px;
   overflow: hidden;
   background:
     linear-gradient(90deg, var(--on-demo-faint) 1px, transparent 1px),
@@ -356,9 +474,8 @@ button:focus-visible {
   background-size: 80px 80px, auto;
 }
 
-/* Moved out of the bottom-right corner. The old absolute placement
-   (right/bottom) put the skeleton bars underneath the cup and across the
-   cat's paw, which read as a rendering glitch rather than a mock page. */
+/* Top-left, clear of the cup and the cat's paw. Placed bottom-right, the
+   skeleton bars ran underneath both and read as a rendering glitch. */
 .feed-lines {
   position: absolute;
   left: var(--s7);
@@ -369,7 +486,7 @@ button:focus-visible {
 }
 
 .feed-lines span {
-  height: 14px;
+  height: 12px;
   border-radius: 999px;
   background: var(--on-demo);
 }
@@ -379,25 +496,33 @@ button:focus-visible {
 
 .demo-cat {
   position: absolute;
-  left: 12%;
-  bottom: 9%;
+  left: 11%;
+  bottom: 8%;
   /* Sized so the auto height lands at ~324px -- the buddy art is 0.78:1, and at
-     the old 300px width the box grew to 385px and clipped against
-     .browser-page's overflow:hidden. */
+     300px wide the box grows to 385px and clips against .browser-page's
+     overflow:hidden. */
   width: min(252px, 44%);
 }
 
-.demo-cat img {
+/* `>` is load-bearing. As `.demo-cat img` this also matched the three mug
+   sprite layers, so mug-back, mug-fill and mug-front each cast their own hard
+   18px copy of themselves and the three stacked into a dark rectangle sitting
+   under the cup. The cat is the only child <img>; the cup is a <span>.
+
+   The shadow itself is now soft rather than the old `0 18px 0` hard offset --
+   that was the sticker idiom this redesign removed everywhere else, and on the
+   dark demo panel it read as a smudge rather than as depth. */
+.demo-cat > img {
   width: 100%;
   display: block;
   image-rendering: pixelated;
-  filter: drop-shadow(0 18px 0 rgba(36, 24, 18, 0.22));
+  filter: drop-shadow(0 14px 18px rgba(20, 8, 14, 0.45));
 }
 
 /* The demo cup is the extension's own sprite, not a lookalike drawn in CSS.
    The --win-* / --liq-* values are written by script.js from the generated
    COFFEECAT_MUG geometry, so this page cannot drift away from the product the
-   way the old hand-tuned box did. */
+   way a hand-tuned box would. Do not retune these by eye. */
 .demo-cup {
   position: absolute;
   right: 4%;
@@ -436,108 +561,114 @@ button:focus-visible {
   top: var(--liq-y);
 }
 
-/* ---------- Brew menu ---------- */
+/* ---------- Brew index ---------- */
 /* Transcribed from BREW_MODES in src/popup.js:42-75. If a mode changes there,
-   change it here -- the site must not advertise a brew the popup cannot run. */
+   change it here -- the site must not advertise a brew the popup cannot run.
 
-.menu-list {
+   Was a bordered card stack; now a leader-rule index. A price-list/table-of-
+   contents form suits four fixed options far better than four boxes, and the
+   rule does the grouping the border used to. */
+
+.index {
   display: grid;
-  gap: 0;
-  border: 4px solid var(--outline);
-  border-radius: var(--r-lg);
-  background: var(--raised);
-  box-shadow: var(--sticker-md);
-  overflow: hidden;
 }
 
-.menu-item {
+.index-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: var(--s3) var(--s5);
-  padding: var(--s6) var(--s7);
-  transition: background-color var(--dur) var(--ease);
+  gap: var(--s2) var(--s5);
+  padding-block: var(--s6);
+  border-top: 1px solid var(--rule);
 }
 
-.menu-item + .menu-item {
-  border-top: 2px solid var(--hairline);
+.index-row:last-child {
+  border-bottom: 1px solid var(--rule);
 }
 
-.menu-item:hover {
-  background: rgba(var(--outline-a), 0.04);
-}
-
-.menu-item dt {
+/* The leader lives inside the <dt> because a <dl> row admits only dt/dd -- a
+   decorative <span> between them would be invalid markup. */
+.index-row dt {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  color: var(--ink);
   font-size: var(--t-h3);
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  color: var(--label);
+  font-weight: 500;
+  letter-spacing: -0.02em;
 }
 
-.menu-item .dose {
+.index-row dt::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--rule);
+}
+
+.index-row .dose {
   font-family: var(--font-mono);
-  font-size: var(--t-lead);
-  font-weight: 600;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
+  font-size: var(--t-small);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--accent-text);
   white-space: nowrap;
 }
 
-@media (prefers-color-scheme: dark) {
-  .menu-item .dose { color: var(--bounce); }
-}
-
-.menu-item dd {
-  margin: 0;
-}
-
-.menu-item dd:not(.dose) {
+.index-row .note {
   grid-column: 1 / -1;
-  color: var(--label-secondary);
-  font-size: var(--t-body);
-  line-height: 1.55;
+  color: var(--ink-3);
+  font-size: var(--t-small);
   max-width: 52ch;
 }
 
-/* ---------- Gentle Gatekeeper band ---------- */
+/* ---------- The dark act ---------- */
+
+.act--dark {
+  /* Scoped token override rather than a media query: this section is dark
+     because of what it depicts, not because of a system preference. */
+  --paper: #100e0c;
+  --panel: #1a1714;
+  --ink: #f6f2ec;
+  --ink-2: #a8a099;
+  --ink-3: #8a827a;
+  --rule: rgba(246, 242, 236, 0.14);
+  --rule-strong: rgba(246, 242, 236, 0.28);
+  --accent-text: #f2ad74;
+
+  background: var(--paper);
+  color: var(--ink-2);
+  border-top-color: transparent;
+}
 
 .band {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: var(--s8);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: var(--s9);
   align-items: center;
-  padding: var(--s8);
-  border: 4px solid var(--outline);
-  border-radius: var(--r-lg);
-  background: var(--raised);
-  /* The old sheet gave this card no shadow at all while the hero demo had a
-     heavy one. That inconsistency was a large part of the unfinished read. */
-  box-shadow: var(--sticker-md);
+}
+
+@media (min-width: 901px) {
+  .band {
+    display: grid;
+  }
 }
 
 .band-copy {
   display: grid;
   gap: var(--s4);
+  max-width: 52ch;
 }
 
 .flood-preview {
   display: grid;
-  gap: var(--s3);
-  justify-items: center;
-  padding: var(--s5);
-  border: 3px solid var(--outline);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  text-align: center;
+  gap: var(--s4);
 }
 
 .flood-page {
   position: relative;
-  width: 100%;
-  min-height: 190px;
+  min-height: 210px;
   overflow: hidden;
-  border: 3px solid var(--outline);
-  border-radius: var(--r-sm);
+  border-radius: var(--r-panel);
   background: linear-gradient(var(--demo-top), var(--demo-bot));
 }
 
@@ -546,7 +677,7 @@ button:focus-visible {
   z-index: 1;
   display: block;
   width: 70%;
-  height: 12px;
+  height: 10px;
   margin: var(--s5) auto 0;
   border-radius: 999px;
   background: var(--on-demo);
@@ -557,7 +688,7 @@ button:focus-visible {
   left: 50%;
   bottom: var(--s5);
   z-index: 3;
-  width: 96px;
+  width: 92px;
   transform: translateX(-50%);
   image-rendering: pixelated;
 }
@@ -585,16 +716,21 @@ button:focus-visible {
   background: rgba(255, 190, 116, 0.28);
 }
 
+.flood-preview figcaption {
+  display: grid;
+  gap: var(--s1);
+}
+
 .flood-preview strong {
-  color: var(--label);
-  font-size: var(--t-lead);
-  font-weight: 700;
-  letter-spacing: -0.015em;
+  color: var(--ink);
+  font-size: var(--t-small);
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .flood-preview small {
-  color: var(--label-tertiary);
-  font-size: var(--t-small);
+  color: var(--ink-3);
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -603,213 +739,232 @@ button:focus-visible {
   70%, 100% { transform: scaleY(1); }
 }
 
-/* ---------- Card grids ---------- */
+/* ---------- Numbered rows ---------- */
+/* Replaces .card-grid. Same content, no boxes: a numeral, a heading and a
+   measure, separated by hairlines. Three bordered cards in a row all compete
+   for the same attention; three rows read in order, which is how the content
+   is actually meant to be taken. */
 
-.card-grid {
+.rows {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--s5);
 }
 
-.card-grid.two-up {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.card {
+.row {
   display: grid;
-  gap: var(--s3);
-  align-content: start;
-  padding: var(--s7);
-  border: 3px solid var(--outline);
-  border-radius: var(--r-md);
-  background: var(--raised);
-  box-shadow: var(--sticker-sm);
-  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+  grid-template-columns: 3rem minmax(0, 0.8fr) minmax(0, 1.4fr);
+  gap: var(--s6);
+  align-items: start;
+  padding-block: var(--s7);
+  border-top: 1px solid var(--rule);
 }
 
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 calc(var(--lift-sm) + 2px) 0 rgba(var(--outline-a), 0.13),
-    0 16px 32px rgba(var(--outline-a), 0.14);
+.row:last-child {
+  border-bottom: 1px solid var(--rule);
 }
 
-.card h3 {
-  font-size: var(--t-lead);
-}
-
-.card p {
+.row p {
   font-size: var(--t-small);
-  line-height: 1.55;
+  color: var(--ink-3);
+  max-width: 56ch;
 }
 
-/* ---------- Install ---------- */
+/* ---------- Install steps ---------- */
 
-.install-card {
-  padding: var(--s8);
-  border: 4px solid var(--outline);
-  border-radius: var(--r-lg);
-  background: var(--raised);
-  box-shadow: var(--sticker-md);
-}
-
-.install-card ol {
+.steps {
   display: grid;
-  gap: var(--s4);
-  margin: 0;
   padding: 0;
   list-style: none;
   counter-reset: step;
 }
 
-.install-card li {
+.steps li {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: var(--s6);
   align-items: baseline;
-  gap: var(--s4);
-  color: var(--label-secondary);
+  padding-block: var(--s5);
+  border-top: 1px solid var(--rule);
+  color: var(--ink);
   font-size: var(--t-body);
-  line-height: 1.55;
   counter-increment: step;
 }
 
-.install-card li::before {
-  content: counter(step);
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--outline);
-  border-radius: 50%;
-  color: var(--label);
-  font-size: var(--t-caption);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+.steps li:last-child {
+  border-bottom: 1px solid var(--rule);
 }
 
-code {
-  padding: 2px var(--s1);
-  border-radius: var(--r-sm);
-  background: var(--code-bg);
-  color: var(--code-label);
+/* A mono numeral in the same column as .row-num, so steps and rows share one
+   spine down the page. The old circled counter was a third border idiom. */
+.steps li::before {
+  content: "0" counter(step);
   font-family: var(--font-mono);
-  font-size: 0.92em;
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  color: var(--ink-3);
 }
 
 /* ---------- Notes + footer ---------- */
 
 .notes {
-  display: grid;
-  gap: var(--s5);
-  padding-top: var(--s7);
-  border-top: 2px solid var(--hairline);
+  gap: var(--s4);
+  max-width: 68ch;
 }
 
 .notes p {
   font-size: var(--t-small);
-  color: var(--label-tertiary);
-  max-width: 68ch;
+  color: var(--ink-3);
 }
 
 .site-footer {
   padding-block: var(--s8) var(--s9);
-  border-top: 2px solid var(--hairline);
+  border-top: 1px solid var(--rule);
 }
 
 .site-footer .wrap {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--s4);
 }
 
 .site-footer p {
   font-size: var(--t-small);
-  color: var(--label-tertiary);
+  color: var(--ink-3);
+}
+
+.site-footer small {
+  flex-basis: 100%;
+  margin-top: var(--s5);
+  color: var(--ink-3);
+  font-size: 12px;
+  opacity: 0.75;
 }
 
 .footer-mark {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  font-weight: 700;
-  color: var(--label);
+  color: var(--ink);
+  font-size: var(--t-small);
+  font-weight: 500;
   letter-spacing: -0.01em;
 }
 
 .footer-mark img {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   image-rendering: pixelated;
+}
+
+/* ---------- Scroll reveal ---------- */
+/* The hidden state is applied by script.js, never here -- as a static rule it
+   would leave the whole page blank for anyone without JS. See script.js. */
+
+[data-reveal].is-hidden {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+[data-reveal].is-revealed {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 600ms var(--ease),
+    transform 600ms var(--ease);
 }
 
 /* ---------- Responsive ---------- */
 
 @media (max-width: 900px) {
-  :root {
-    --s10: 72px;
-    --s11: 88px;
-  }
-
   .wrap {
     width: min(1120px, calc(100vw - var(--s6)));
   }
 
-  .hero,
+  .act-grid,
+  .hero-lower,
   .band {
     grid-template-columns: 1fr;
   }
 
-  .hero {
-    min-height: auto;
-    gap: var(--s8);
-  }
-
-  .band {
-    padding: var(--s6);
+  .act-grid {
     gap: var(--s6);
   }
 
-  .card-grid,
-  .card-grid.two-up {
-    grid-template-columns: 1fr;
+  /* Stacked, the label sits directly above its content -- sticking it would
+     park it over the heading it introduces. */
+  .act-label {
+    position: static;
+    grid-auto-flow: column;
+    justify-content: start;
+    gap: var(--s3);
+  }
+
+  .hero-lower {
+    gap: var(--s8);
+    align-items: stretch;
   }
 
   .browser-page {
-    min-height: 360px;
+    min-height: 340px;
   }
 
-  .install-card {
-    padding: var(--s6);
+  .row {
+    grid-template-columns: 3rem minmax(0, 1fr);
   }
 
-  .menu-item {
-    padding: var(--s5) var(--s6);
+  .row p {
+    grid-column: 2;
   }
 }
 
-@media (max-width: 560px) {
+@media (max-width: 640px) {
+  /* Five links will not fit beside the mark, and a hamburger for a six-section
+     page is more machinery than the page is worth. The spine numerals carry the
+     structure once you are scrolling. */
+  .nav-links {
+    display: none;
+  }
+
   .hero-actions .btn {
     flex: 1 1 100%;
     justify-content: center;
   }
 
-  .menu-item {
+  .index-row {
     grid-template-columns: 1fr;
+  }
+
+  /* With one column the leader has nothing to lead to. */
+  .index-row dt::after {
+    display: none;
+  }
+
+  .row,
+  .steps li {
+    grid-template-columns: 1fr;
+    gap: var(--s2);
+  }
+
+  .row p {
+    grid-column: 1;
   }
 }
 
 /* Mirrors the guard the extension already ships (src/popup.css:472-483). The
    coffee flood is a decorative 4s loop; it must stop, not just shorten. */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
   }
 
   .flood-coffee {
@@ -817,8 +972,10 @@ code {
     transform: scaleY(0.72);
   }
 
-  .btn:hover,
-  .card:hover {
+  /* Belt and braces: script.js already skips the reveal entirely under reduced
+     motion, but if it ever failed to run, content must not be left invisible. */
+  [data-reveal].is-hidden {
+    opacity: 1;
     transform: none;
   }
 }
