@@ -24,7 +24,20 @@
      - The .demo-cup geometry block. Those --win-* / --liq-* values are written
        by script.js from tools/render_mug.py output; the site must not drift
        from the sprite the extension actually ships.
-     - The accent. #a85a2e was contrast-audited in src/popup.css:39-45. */
+
+   Hue pass (this revision). The page was built on #a85a2e terracotta, which is
+   close enough to Anthropic's clay to read as borrowed, and it fought the one
+   thing on the page that has to stay warm: an orange cat. Two warm families
+   competing is why the chrome never settled. The page now runs a violet
+   family (phantom.com's) as the UI colour and leaves warmth entirely to the
+   art -- the cat, the coffee, the crema. Complement, not competition.
+
+   The load-bearing rule, and the reason the buttons looked wrong even in the
+   old palette: a light accent is a FILL, not a text colour. #ab9ff2 carries
+   white at 2.3:1 -- nowhere near legible -- so the primary button is dark ink
+   on lavender, which is how Phantom actually sets it. Text-on-paper uses a
+   separate, much darker stop (--accent-text). Getting these two confused is
+   what produces the washed-out lavender button you see on most clones. */
 
 /* ---------- Fonts ---------- */
 /* Vendored under site/fonts/ (SIL OFL, see fonts/LICENSE.txt). Self-hosted
@@ -72,31 +85,60 @@
   --s5: 20px;  --s6: 24px;  --s7: 32px;  --s8: 48px;
   --s9: 64px;  --s10: 96px;
 
-  /* Six values for the entire page. Contrast against --paper, all AA at body
-     size: ink 17.2:1, ink-2 6.7:1, ink-3 4.8:1, accent-text 5.9:1. */
-  --paper: #f4f2ef;
-  --panel: #faf9f7;
-  --ink: #16130f;
-  --ink-2: #5c534b;
-  --ink-3: #736b62;
-  --rule: rgba(22, 19, 15, 0.12);
-  --rule-strong: rgba(22, 19, 15, 0.24);
+  /* Six values for the entire page. The neutrals are not grey -- every one of
+     them carries a little of the accent's violet, which is what makes a
+     restricted palette read as chosen rather than as default. Contrast against
+     --paper, all AA at body size: ink 16.3:1, ink-2 7.9:1, ink-3 5.5:1,
+     accent-text 6.1:1. */
+  --paper: #f4f2fa;
+  --panel: #fbfaff;
+  --ink: #171327;
+  --ink-2: #4e4664;
+  --ink-3: #665d80;
+  --rule: rgba(23, 19, 39, 0.12);
+  --rule-strong: rgba(23, 19, 39, 0.24);
 
-  /* Fill vs. text are separate values. #a85a2e carries white at 5.0:1 as a
-     button fill, but only 4.5:1 as text on --paper -- too close to the line for
-     15px mono. The darker stop is the popup's --accent-label. */
-  --accent: #a85a2e;
-  --accent-hover: #96502a;
-  --accent-text: #8f4a22;
-  --on-accent: #ffffff;
+  /* Three stops of one hue, because one stop cannot do three jobs.
+
+     #ab9ff2 is the brand colour, but it is a *light* colour, and this is a
+     light page. Two separate limits bite:
+       - as a fill it sits 2.1:1 against --paper, under the 3:1 that a control's
+         own boundary needs to be identifiable (WCAG 1.4.11). A lavender pill on
+         near-white paper is legible only because of the text inside it.
+       - as text it is 2.3:1, which is not a text colour under any rule.
+     So the light field runs the fill one step deeper (3.1:1 boundary, 5.3:1
+     for the label) and text three steps deeper. The pale original is not lost:
+     .act--dark hands both jobs back to it, where a dark ground makes it work.
+
+     --accent-hover deepens rather than lightens. Lightening a pale fill on
+     hover weakens the affordance exactly as the pointer commits to it, and it
+     would drag the label under AA -- the deeper stop keeps it at 4.7:1. */
+  --accent: #8b7ce9;
+  --accent-hover: #8272e6;
+  --accent-text: #5d43b8;
+  --on-accent: #171327;
+
+  /* Focus rings are their own token because they cannot use --accent: a 2px
+     lavender ring sits at 2.3:1 against --paper and fails the 3:1 non-text
+     minimum (WCAG 1.4.11). --accent-text clears it at 6.1:1, and because the
+     dark act re-points --accent-text at the light lavender, one declaration
+     stays correct on both fields. */
+  --focus: var(--accent-text);
 
   /* The demo "web page" surface. Deliberately constant: it depicts a page being
-     browsed, not site chrome. Both stops are real CAT_RAMP entries, so the
-     orange fur reads as lit by its own shadow family. */
-  --demo-top: #531a26;
-  --demo-bot: #470928;
-  --on-demo: rgba(255, 248, 239, 0.34);
-  --on-demo-faint: rgba(255, 248, 239, 0.07);
+     browsed, not site chrome.
+
+     Previously both stops were CAT_RAMP entries (#531a26 / #470928) so the fur
+     sat in its own shadow family. That tie is now half kept and half traded on
+     purpose: the field is violet so it belongs to the palette, but it lands on
+     the warm plum side of violet -- the cat's darkest edge is #470928 (EDGE in
+     tools/render_mug.py), and running the panel too blue would leave the
+     silhouette floating on an unrelated hue. Do not push these toward indigo
+     without looking at the cat. */
+  --demo-top: #3b1a4e;
+  --demo-bot: #22102f;
+  --on-demo: rgba(242, 237, 255, 0.34);
+  --on-demo-faint: rgba(242, 237, 255, 0.07);
 
   /* Type. Display is driven off --u; everything from the lede down is fixed so
      it respects the browser's font-size setting. */
@@ -236,7 +278,7 @@ code {
      inline <code> visibly detaches from it. */
   padding: 0.15em 0.28em;
   border-radius: 4px;
-  background: rgba(22, 19, 15, 0.06);
+  background: rgba(23, 19, 39, 0.06);
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: 0.88em;
@@ -330,13 +372,13 @@ code {
 }
 
 .btn.secondary:hover {
-  background: rgba(22, 19, 15, 0.04);
+  background: rgba(23, 19, 39, 0.04);
   border-color: var(--ink);
 }
 
 a:focus-visible,
 button:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 3px;
   border-radius: 2px;
 }
@@ -516,7 +558,7 @@ button:focus-visible {
   width: 100%;
   display: block;
   image-rendering: pixelated;
-  filter: drop-shadow(0 14px 18px rgba(20, 8, 14, 0.45));
+  filter: drop-shadow(0 14px 18px rgba(14, 6, 26, 0.5));
 }
 
 /* The demo cup is the extension's own sprite, not a lookalike drawn in CSS.
@@ -627,14 +669,21 @@ button:focus-visible {
 .act--dark {
   /* Scoped token override rather than a media query: this section is dark
      because of what it depicts, not because of a system preference. */
-  --paper: #100e0c;
-  --panel: #1a1714;
-  --ink: #f6f2ec;
-  --ink-2: #a8a099;
-  --ink-3: #8a827a;
-  --rule: rgba(246, 242, 236, 0.14);
-  --rule-strong: rgba(246, 242, 236, 0.28);
-  --accent-text: #f2ad74;
+  --paper: #14111f;
+  --panel: #1e1a2e;
+  --ink: #f3f0fb;
+  --ink-2: #a9a2c4;
+  --ink-3: #8b83a8;
+  --rule: rgba(243, 240, 251, 0.14);
+  --rule-strong: rgba(243, 240, 251, 0.28);
+  /* On the dark field the brand lavender is finally usable at full strength --
+     7.9:1 as text, and any fill made of it is unmistakable against #14111f --
+     so the three light-field stops collapse back into one colour. This is the
+     only place on the page the brand hue appears undiluted, which is most of
+     why the dark act reads as an event rather than as a colour inversion. */
+  --accent: #ab9ff2;
+  --accent-hover: #bcb0f5;
+  --accent-text: #ab9ff2;
 
   background: var(--paper);
   color: var(--ink-2);
@@ -693,6 +742,10 @@ button:focus-visible {
   image-rendering: pixelated;
 }
 
+/* The last warm colours on the page, and deliberately so: this is coffee, not
+   chrome. The violet field is what lets them stay warm without the page
+   reading as two competing temperatures -- against the old terracotta UI these
+   browns were just more of the same. Do not violet-shift the flood. */
 .flood-coffee {
   position: absolute;
   inset: 0;

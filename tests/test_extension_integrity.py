@@ -276,7 +276,9 @@ def test_static_site_documents_v2_launch():
     script = read_text("site/script.js")
 
     assert "CoffeeCat" in index
-    assert "Gentle Gatekeeper" in index
+    # The break feature is named "Coffee break" in site copy. It was previously
+    # "Gentle Gatekeeper"; renamed because visitors read the old name as jargon.
+    assert "Coffee break" in index
     assert "../assets/coffeecat-buddy.png" in index
     assert "demo-fill" in index
     assert "requestAnimationFrame" in script
