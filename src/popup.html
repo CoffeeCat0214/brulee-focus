@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CoffeeCat</title>
+    <title>Brûlée Focus</title>
     <!-- shared.css first: it carries the tokens and the shared controls that
          popup.css builds on, and the content script adopts the same file into
          its shadow roots. -->
@@ -17,7 +17,7 @@
       <div id="panes" class="panes">
         <section id="pane-focus" class="pane is-active" aria-label="Focus Coffee">
           <header class="bar">
-            <h1>CoffeeCat</h1>
+            <h1>Brûlée Focus</h1>
             <button id="open-settings" class="icon-button" type="button" aria-label="Settings">
               <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="3"></circle>
@@ -29,7 +29,7 @@
           <div class="hero">
             <!-- Geometry mirrors assets/mug/*.png exactly: both come from
                  tools/render_mug.py, which emits these path strings alongside
-                 the sprite (see COFFEECAT_MUG.SVG in src/mug-geometry.js).
+                 the sprite (see BRULEE_MUG.SVG in src/mug-geometry.js).
                  Vector here rather than the sprite because this popup rethemes
                  for dark mode and a raster cup cannot.
                  Do not hand-edit the path data -- re-run the generator.
@@ -106,7 +106,7 @@
 
           <div class="rows">
             <label class="row" for="enabled">
-              <span>Show CoffeeCat</span>
+              <span>Show Brûlée</span>
               <input id="enabled" type="checkbox" role="switch">
             </label>
 
@@ -126,7 +126,10 @@
             </div>
           </div>
 
-          <p class="settings-note">CoffeeCat stays local. Nothing leaves your browser.</p>
+          <!-- No brand name: this sits inside the product's own settings pane,
+               so naming it there only pushed the line to two rows and left
+               "browser." alone on the second. -->
+          <p class="settings-note">Stays local. Nothing leaves your browser.</p>
         </section>
       </div>
     </main>

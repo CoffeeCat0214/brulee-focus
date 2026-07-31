@@ -53,8 +53,8 @@ function startedSession({ durationMs = 25 * MINUTE, elapsedMs = 0, stats } = {})
 }
 
 async function main() {
-  const FOCUS_ALARM = "coffeecat-focus-end";
-  const BREAK_ALARM = "coffeecat-break-end";
+  const FOCUS_ALARM = "brulee-focus-end";
+  const BREAK_ALARM = "brulee-break-end";
 
   /* ── A running session schedules exactly one alarm, at its real expiry ── */
   scenario = "running session schedules its expiry";

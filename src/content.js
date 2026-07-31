@@ -1,6 +1,6 @@
 (function coffeeCatContent() {
-  const ROOT_ID = "coffeecat-root";
-  const INTERMISSION_ROOT_ID = "coffeecat-intermission-root";
+  const ROOT_ID = "brulee-root";
+  const INTERMISSION_ROOT_ID = "brulee-intermission-root";
   const COFFEE_RENDER_INTERVAL_MS = 250;
 
   // What a session is, shared with the service worker and the popup so the
@@ -18,7 +18,7 @@
     getValidBreakDuration,
     getValidDuration,
     normalizeSettings
-  } = globalThis.COFFEECAT;
+  } = globalThis.BRULEE;
 
   // Covers the purr bubble's gap and tail, which sit outside its own box.
   const BUBBLE_EDGE_SLACK_PX = 8;
@@ -28,7 +28,7 @@
   // sits inside the glass and how far it travels -- the popup and the marketing
   // site read the same object, which is what stops the three surfaces drifting
   // into three different cups again.
-  const { FILL_WINDOW, DRAIN_RANGE, SVG } = globalThis.COFFEECAT_MUG;
+  const { FILL_WINDOW, DRAIN_RANGE, SVG } = globalThis.BRULEE_MUG;
 
   // The intermission's vector cup, matching the popup's hero markup. Derived
   // from the generated geometry rather than copied out of popup.html:
@@ -276,8 +276,8 @@
     // No `title`: the native tooltip fades in over the same spot the purr
     // bubble occupies, in the host OS's styling rather than ours. aria-label
     // already gives the button its accessible name.
-    cat.setAttribute("aria-label", "CoffeeCat browser buddy");
-    const buddyImage = getExtensionUrl("assets/coffeecat-buddy.png");
+    cat.setAttribute("aria-label", "Brûlée, the Coffee Cat");
+    const buddyImage = getExtensionUrl("assets/brulee-buddy.png");
     const mugBack = getExtensionUrl("assets/mug/mug-back.png");
     const mugFill = getExtensionUrl("assets/mug/mug-fill.png");
     const mugFront = getExtensionUrl("assets/mug/mug-front.png");
@@ -471,7 +471,7 @@
   function buildIntermission() {
     const overlay = document.createElement("section");
     overlay.className = "intermission";
-    overlay.setAttribute("aria-label", "CoffeeCat intermission");
+    overlay.setAttribute("aria-label", "Brûlée Focus intermission");
     overlay.innerHTML = `
       <div class="coffee-rise" aria-hidden="true">
         <span class="coffee-wave wave-a"></span>

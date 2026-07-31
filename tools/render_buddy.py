@@ -3,7 +3,7 @@
 
 Run from the repo root:
 
-    python3 tools/render_buddy.py                 # writes assets/coffeecat-buddy.png
+    python3 tools/render_buddy.py                 # writes assets/brulee-buddy.png
     python3 tools/render_buddy.py /tmp/out        # write elsewhere (used by tests)
 
 Stdlib only, same constraint as tools/render_mug.py: this repo has no
@@ -41,7 +41,7 @@ import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MASTER = ROOT / "assets" / "source" / "coffeecat-buddy-master.png"
+MASTER = ROOT / "assets" / "source" / "brulee-buddy-master.png"
 
 
 # Two sizes, because the two surfaces are not the same problem.
@@ -56,8 +56,8 @@ SIZES = {
     # 181x232 device px is the largest the float can paint (116px box, 2x DPR).
     # The headroom to 200 costs ~10KB and keeps the sprite from being upscaled
     # on a fractional-DPI display.
-    "coffeecat-buddy.png": 200,
-    "coffeecat-buddy-large.png": 512,
+    "brulee-buddy.png": 200,
+    "brulee-buddy-large.png": 512,
 }
 
 # Below this the averaged coverage is treated as fully transparent and the pixel

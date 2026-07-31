@@ -3,7 +3,7 @@
 
 Run from the repo root:
 
-    python3 tools/package.py              # writes dist/coffeecat-<version>.zip
+    python3 tools/package.py              # writes dist/brulee-<version>.zip
     python3 tools/package.py --list       # print what would go in, and stop
     python3 tools/package.py --out build  # somewhere else
 
@@ -53,7 +53,7 @@ INCLUDE = (
     "src/popup.html",
     "src/popup.js",
     "src/popup.css",
-    "assets/coffeecat-buddy.png",
+    "assets/brulee-buddy.png",
     "assets/icons/icon-16.png",
     "assets/icons/icon-32.png",
     "assets/icons/icon-48.png",
@@ -70,7 +70,7 @@ INCLUDE = (
 EXCLUDED_ON_PURPOSE = (
     "assets/source/",           # the 890x1142 illustration master
     "assets/archive/",          # superseded character art
-    "assets/coffeecat-buddy-large.png",  # the site's hero render, not the sprite
+    "assets/brulee-buddy-large.png",  # the site's hero render, not the sprite
     "site/",                    # marketing site, deployed separately
     "tools/",                   # generators and screenshot harnesses
     "tests/",
@@ -112,7 +112,7 @@ def collect() -> list[Path]:
 def build(out_dir: Path) -> Path:
     files = collect()
     out_dir.mkdir(parents=True, exist_ok=True)
-    target = out_dir / f"coffeecat-{manifest_version()}.zip"
+    target = out_dir / f"brulee-focus-{manifest_version()}.zip"
 
     with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in files:

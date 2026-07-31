@@ -168,7 +168,7 @@ def test_session_model_has_one_definition():
         for name, source in consumers.items():
             assert f"const {symbol} =" not in source, (
                 f"src/{name} redefines {symbol}; destructure it from "
-                f"globalThis.COFFEECAT instead"
+                f"globalThis.BRULEE instead"
             )
 
     # Duration literals belong to the brew table. A minutes-to-ms expression in a
@@ -179,7 +179,7 @@ def test_session_model_has_one_definition():
         )
 
     for name, source in consumers.items():
-        assert "globalThis.COFFEECAT" in source, f"src/{name} does not read the shared model"
+        assert "globalThis.BRULEE" in source, f"src/{name} does not read the shared model"
 
     # The popup loads it as a plain script, so order is the whole contract:
     # popup.js destructures the global at its top level. Read the actual <script>
@@ -237,7 +237,7 @@ def test_session_completion_has_exactly_one_owner():
 def test_storage_is_local_everywhere():
     """The privacy claim in the UI has to be true of the code.
 
-    The popup says "CoffeeCat stays local. Nothing leaves your browser." while
+    The popup says "Brûlée Focus stays local. Nothing leaves your browser." while
     the extension used chrome.storage.sync, which replicates through the user's
     Google account to their other devices. That is a statement the Web Store
     data-use disclosure asks you to certify, so it is pinned here rather than
@@ -354,7 +354,7 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
     }
 
     assert resources == {
-        "assets/coffeecat-buddy.png",
+        "assets/brulee-buddy.png",
         "assets/mug/mug-back.png",
         "assets/mug/mug-fill.png",
         "assets/mug/mug-front.png",
@@ -396,7 +396,7 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
 
     # All three surfaces read the same generated geometry.
     for source in ("src/content.js", "src/popup.js", "site/script.js"):
-        assert "COFFEECAT_MUG" in read_text(source)
+        assert "BRULEE_MUG" in read_text(source)
 
     # The persisted shape now has one definition, so this asserts it exists
     # there rather than asserting the same names appear in two hand-kept copies.
@@ -418,7 +418,7 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
     ):
         assert key in settings_module
 
-    assert "coffeecat-intermission-root" in content
+    assert "brulee-intermission-root" in content
     assert "intermission" in content
     assert "coffee-rise" in content
     assert "intermission-stats" in content
@@ -504,11 +504,25 @@ def test_brew_modes_match_markup():
             f"{copy.group(1)}"
         )
 
-    # Ambient audio does not exist -- playPurr() is the only sound path.
-    # Keep the UI from re-acquiring claims the code cannot back.
+    # Keep the UI from acquiring claims the code cannot back.
+    #
+    # "brulee" USED to be on this list. It was banned as one of several invented
+    # cat names in copy describing an ambient-audio system that never existed.
+    # It is now the product's actual name (Brûlée Focus) and its mascot's, so
+    # banning it would only stop the UI from saying what the product is called.
+    # The rule the list encodes is unchanged; that one string simply stopped
+    # being evidence of it.
+    #
+    # "block" and "blocker" are new, and they are the same rule pointed at the
+    # risk this branding actually creates. The extension does NOT block, close,
+    # capture or navigate anything: the intermission draws over the page and
+    # deliberately lets clicks through (see #brulee-intermission-root in
+    # src/content.css). A focus-timer brand pulls hard toward "blocks
+    # distracting sites", which would be false in the UI and false in the store
+    # listing, where a reviewer reads it against the permissions.
     content = read_text("src/content.js")
     assert "ambient" not in (popup + settings).lower()
-    for invented in ("misu", "brulee", "cafe hum", "rain sounds"):
+    for invented in ("misu", "cafe hum", "rain sounds", "blocker", "block distracting"):
         assert invented not in popup.lower(), f"unimplemented claim in popup: {invented}"
         assert invented not in content.lower()
         assert invented not in settings.lower()
@@ -519,12 +533,12 @@ def test_static_site_documents_v2_launch():
     styles = read_text("site/styles.css")
     script = read_text("site/script.js")
 
-    assert "CoffeeCat" in index
+    assert "Brûlée Focus" in index
     # The feature is named "Intermission" in site copy. It has been renamed
     # twice: "Gentle Gatekeeper" read as jargon, and "coffee flood" read as
     # damage. The section id is still #gatekeeper, which only anchors deep links.
     assert "Intermission" in index
-    assert "../assets/coffeecat-buddy.png" in index
+    assert "../assets/brulee-buddy.png" in index
     assert "demo-fill" in index
     assert "requestAnimationFrame" in script
     assert ".intermission-preview" in styles
@@ -593,7 +607,7 @@ def test_generated_geometry_is_in_sync():
     """src/mug-geometry.js is generated too, and every surface reads it."""
     geometry = read_text("src/mug-geometry.js")
     assert "GENERATED by tools/render_mug.py" in geometry
-    assert "COFFEECAT_MUG" in geometry
+    assert "BRULEE_MUG" in geometry
     for key in ("FILL_WINDOW", "DRAIN_RANGE", "bottomRadius", "interiorHeight"):
         assert key in geometry
 
@@ -617,9 +631,9 @@ def test_generated_geometry_is_in_sync():
 def test_png_assets_are_valid_rgba():
     expected_sizes = {
         # Delivery size, not authoring size. See test_sprites_are_cut_to_delivery_size.
-        "assets/coffeecat-buddy.png": (200, 257),
-        "assets/coffeecat-buddy-large.png": (512, 657),
-        "assets/source/coffeecat-buddy-master.png": (890, 1142),
+        "assets/brulee-buddy.png": (200, 257),
+        "assets/brulee-buddy-large.png": (512, 657),
+        "assets/source/brulee-buddy-master.png": (890, 1142),
         "assets/icons/icon-16.png": (16, 16),
         "assets/icons/icon-32.png": (32, 32),
         "assets/icons/icon-48.png": (48, 48),
@@ -651,7 +665,7 @@ def test_buddy_sprite_is_reproducible():
         )
         assert result.returncode == 0, result.stderr or result.stdout
 
-        for name in ("coffeecat-buddy.png", "coffeecat-buddy-large.png"):
+        for name in ("brulee-buddy.png", "brulee-buddy-large.png"):
             regenerated = Path(tmp) / name
             assert regenerated.is_file(), f"generator did not emit {name}"
             assert png_pixels(regenerated) == png_pixels(ROOT / "assets" / name), (
@@ -680,8 +694,8 @@ def test_sprites_are_cut_to_delivery_size():
     assert declarations == [], f"nearest-neighbour sampling is back: {declarations}"
 
     content = read_text("src/content.js")
-    assert "coffeecat-buddy.png" in content
-    assert "coffeecat-buddy-large.png" not in content, (
+    assert "brulee-buddy.png" in content
+    assert "brulee-buddy-large.png" not in content, (
         "the large render is the site's hero, not the float's sprite"
     )
     assert "assets/source/" not in content

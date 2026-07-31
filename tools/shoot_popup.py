@@ -121,7 +121,7 @@ def find_chrome() -> str:
         if found:
             return found
     sys.exit(
-        "No Chrome binary found. Set COFFEECAT_CHROME or install Google Chrome.\n"
+        "No Chrome binary found. Set BRULEE_CHROME or install Google Chrome.\n"
         "Tried:\n  " + "\n  ".join(CHROME_CANDIDATES)
     )
 
@@ -246,9 +246,9 @@ def main() -> None:
     args = parser.parse_args()
 
     chrome = args.chrome or find_chrome()
-    out_dir = args.out or Path(tempfile.mkdtemp(prefix="coffeecat-shots-"))
+    out_dir = args.out or Path(tempfile.mkdtemp(prefix="brulee-shots-"))
     out_dir.mkdir(parents=True, exist_ok=True)
-    workdir = Path(tempfile.mkdtemp(prefix="coffeecat-stage-"))
+    workdir = Path(tempfile.mkdtemp(prefix="brulee-stage-"))
 
     heights = measure(chrome, workdir)
     height = heights["body"]

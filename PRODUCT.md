@@ -12,15 +12,15 @@ Anyone who browses the web and wants a friendly, low-pressure companion while th
 
 ## Product Purpose
 
-CoffeeCat is a local Chrome extension that places a pixel coffee cat on ordinary web pages. It makes focused work feel gentler and more inviting through a Focus Coffee timer: the cup drains with the session, then the cat marks the end with a five-minute intermission. Success means helping people protect attention and take breaks while giving them a small cat to enjoy.
+Brûlée Focus is a local Chrome extension that places a pixel coffee cat on ordinary web pages. It makes focused work feel gentler and more inviting through a Focus Coffee timer: the cup drains with the session, then the cat marks the end with a five-minute intermission. Success means helping people protect attention and take breaks while giving them a small cat to enjoy.
 
 ## Positioning
 
-CoffeeCat is a cat-coded focus companion, not a productivity dashboard. Time is expressed through a cat, a coffee cup, and a quiet on-page presence rather than charts, pressure, or interruption-heavy alerts. Its companionship and focus tools stay together in the browser, and the experience remains local and private.
+Brûlée Focus is a cat-coded focus companion, not a productivity dashboard. Time is expressed through a cat, a coffee cup, and a quiet on-page presence rather than charts, pressure, or interruption-heavy alerts. Its companionship and focus tools stay together in the browser, and the experience remains local and private.
 
 ## Operating Context
 
-CoffeeCat lives on normal `http` and `https` pages while someone browses. The toolbar popup controls visibility, size, brew mode, and the timer. The cat can be moved around the page, clicked to sip and purr, and returned to its default position. Espresso Shot, Slow Pour, Cold Brew, and Decaf provide different focus durations. When a session ends, a five-minute intermission appears on the current page and can be refilled, dismissed with Escape, or allowed to clear when its countdown ends.
+Brûlée Focus lives on normal `http` and `https` pages while someone browses. The toolbar popup controls visibility, size, brew mode, and the timer. The cat can be moved around the page, clicked to sip and purr, and returned to its default position. Espresso Shot, Slow Pour, Cold Brew, and Decaf provide different focus durations. When a session ends, a five-minute intermission appears on the current page and can be refilled, dismissed with Escape, or allowed to clear when its countdown ends.
 
 ## Capabilities and Constraints
 
@@ -35,10 +35,10 @@ CoffeeCat lives on normal `http` and `https` pages while someone browses. The to
 
 ## Brand Commitments
 
-- Product name: CoffeeCat.
+- Product name: Brûlée Focus.
 - Primary character: Crème Brûlée, a pixel coffee cat.
 - The product should stay distinctly cat-coded: the cat is a meaningful part of the experience and voice, not decorative branding added around a generic timer.
-- Preserve the existing CoffeeCat, Focus Coffee, brew-mode, and intermission terminology unless the user changes it.
+- Preserve the existing Brûlée Focus, Focus Coffee, brew-mode, and intermission terminology unless the user changes it.
 - Keep the tone cozy, playful, and low-pressure while remaining clear about what the extension does.
 
 ## Evidence on Hand
@@ -48,7 +48,7 @@ CoffeeCat lives on normal `http` and `https` pages while someone browses. The to
 - `docs/WEBSITE_BRIEF.md`: product messaging, feature requirements, constraints, and site acceptance criteria.
 - `src/`: popup, on-page companion, focus timer, and intermission implementation. `settings.js` is the shared session model; `background.js` owns session completion.
 - `LAUNCH.md`: the Chrome Web Store submission runbook.
-- `assets/`: CoffeeCat character, mug art, and extension icons.
+- `assets/`: Brûlée Focus character, mug art, and extension icons.
 - `site/`: runnable public website demonstration and local installation guidance.
 
 ## Product Principles

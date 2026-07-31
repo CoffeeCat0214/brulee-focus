@@ -1,4 +1,4 @@
-# CoffeeCat Website Brief
+# Brûlée Focus Website Brief
 
 > **Superseded.** This is the original spec, kept for history. The shipped site
 > diverges from it deliberately: it uses a violet UI palette rather than the
@@ -6,13 +6,13 @@
 > called the **intermission**, not the "coffee flood". For current design truth
 > read the header comments in `site/styles.css` and `src/shared.css`.
 
-This document captures the product, messaging, and implementation details needed to build a public website for CoffeeCat.
+This document captures the product, messaging, and implementation details needed to build a public website for Brûlée Focus.
 
 ## Product Summary
 
-CoffeeCat is a tiny Chrome extension that adds a pixel coffee cat buddy to normal web pages. The cat sits on the page while you browse, can be dragged around, purrs when clicked, and includes a Focus Coffee timer where the cup drains as the Pomodoro-style session runs out.
+Brûlée Focus is a tiny Chrome extension that adds a pixel coffee cat buddy to normal web pages. The cat sits on the page while you browse, can be dragged around, purrs when clicked, and includes a Focus Coffee timer where the cup drains as the Pomodoro-style session runs out.
 
-The site should sell CoffeeCat as a cozy, low-pressure browser companion: part desk pet, part focus timer, and intentionally local/private.
+The site should sell Brûlée Focus as a cozy, low-pressure browser companion: part desk pet, part focus timer, and intentionally local/private.
 
 ## Core Message
 
@@ -22,7 +22,7 @@ Primary positioning:
 
 Supporting copy:
 
-> CoffeeCat keeps a small companion on the pages you browse, gives you a gentle Focus Coffee timer, and stays local with no backend or analytics.
+> Brûlée Focus keeps a small companion on the pages you browse, gives you a gentle Focus Coffee timer, and stays local with no backend or analytics.
 
 Good short phrases:
 
@@ -42,7 +42,7 @@ Avoid claiming:
 ## Current Features
 
 - Chrome extension using Manifest V3.
-- On-page CoffeeCat buddy appears on normal `http` and `https` pages.
+- On-page Brûlée Focus buddy appears on normal `http` and `https` pages.
 - Toolbar popup for settings.
 - Show/hide toggle.
 - Small, medium, and large size options.
@@ -50,9 +50,9 @@ Avoid claiming:
 - Reset position control.
 - Click interaction that triggers a sip/purr animation and sound.
 - Focus Coffee timer in the popup.
-- Floating cup next to CoffeeCat mirrors the timer state.
+- Floating cup next to Brûlée Focus mirrors the timer state.
 - Coffee liquid drains as time runs out.
-- CoffeeCat shows a coffee-flood break overlay on the current page when Focus Coffee ends.
+- Brûlée Focus shows a coffee-flood break overlay on the current page when Focus Coffee ends.
 - The break overlay fills the screen upward with semi-transparent coffee, then shows a five-minute countdown, refill action, and one snooze.
 - Local stats track sessions completed, minutes protected, and cups finished.
 - Coffee fill updates every `250ms` for smoother perceived motion.
@@ -67,8 +67,8 @@ The website should feel warm, playful, and focused on the actual extension exper
 
 Recommended visual assets:
 
-- Use `assets/coffeecat-buddy-large.png` as the primary character image at hero sizes, and `assets/coffeecat-buddy.png` for marks and small inline uses. Both come from `tools/render_buddy.py`; the small one is cut to what the extension's float paints and will be soft above ~200px.
-- Show a real browser-page mockup with CoffeeCat sitting near the bottom-right.
+- Use `assets/brulee-buddy-large.png` as the primary character image at hero sizes, and `assets/brulee-buddy.png` for marks and small inline uses. Both come from `tools/render_buddy.py`; the small one is cut to what the extension's float paints and will be soft above ~200px.
+- Show a real browser-page mockup with Brûlée Focus sitting near the bottom-right.
 - Include a close-up or animated demo of the Focus Coffee cup draining and the page filling with coffee.
 - Use the extension icons from `assets/icons/` for favicon/app icon treatments.
 
@@ -81,17 +81,17 @@ Recommended style:
 
 Hero direction:
 
-- First viewport should immediately show CoffeeCat and the cup, not just text.
-- Headline should name the product: `CoffeeCat`.
+- First viewport should immediately show Brûlée Focus and the cup, not just text.
+- Headline should name the product: `Brûlée Focus`.
 - Supporting text should explain the browser buddy and Focus Coffee timer.
 - Primary call to action should be install-oriented, such as `Load locally` until the extension is published.
 
 ## Suggested Website Structure
 
 1. Hero
-   - Product name: CoffeeCat.
+   - Product name: Brûlée Focus.
    - Short value prop: a tiny pixel coffee cat for your browser.
-   - Visual: CoffeeCat on a browser-page background with the coffee cup visible.
+   - Visual: Brûlée Focus on a browser-page background with the coffee cup visible.
    - CTA: local install instructions or download link.
 
 2. Focus Coffee
@@ -101,8 +101,8 @@ Hero direction:
    - Show the coffee flood takeover as the end-of-session moment.
 
 3. Browser Buddy Features
-   - Drag CoffeeCat.
-   - Resize CoffeeCat.
+   - Drag Brûlée Focus.
+   - Resize Brûlée Focus.
    - Click to sip and purr.
    - Reset position.
 
@@ -116,20 +116,20 @@ Hero direction:
    - Open `chrome://extensions`.
    - Enable Developer mode.
    - Load unpacked.
-   - Select the CoffeeCat folder.
+   - Select the Brûlée Focus folder.
    - Visit a normal web page.
 
 6. Technical Notes
    - Chrome extension, Manifest V3.
    - Requires `storage` permission.
    - Runs on `http` and `https` pages.
-   - Chrome does not allow free drawing in the native tab strip, so CoffeeCat appears as an on-page buddy.
+   - Chrome does not allow free drawing in the native tab strip, so Brûlée Focus appears as an on-page buddy.
 
 ## Website Interaction Ideas
 
 Recommended interactive demo:
 
-- Build a small mock browser canvas or section where CoffeeCat appears with the coffee cup.
+- Build a small mock browser canvas or section where Brûlée Focus appears with the coffee cup.
 - Add a demo timer state control or automatic loop that drains/refills the cup and previews the coffee flood.
 - The demo should use the same visual principle as the extension:
   - cup outline remains fixed
@@ -152,7 +152,7 @@ The site is static and can be opened directly in a browser.
 Hero copy:
 
 ```text
-CoffeeCat
+Brûlée Focus
 A cozy pixel coffee cat for your browser.
 
 Keep a tiny companion on the pages you browse, start a gentle Focus Coffee timer, and watch the cup drain as time runs out.
@@ -167,13 +167,13 @@ Focus Coffee turns time into a tiny cup of coffee. As your session runs down, th
 Privacy copy:
 
 ```text
-CoffeeCat stays local. There is no backend, no analytics, and no account system. The extension stores only its settings, like whether it is enabled, where it sits, and the current timer state.
+Brûlée Focus stays local. There is no backend, no analytics, and no account system. The extension stores only its settings, like whether it is enabled, where it sits, and the current timer state.
 ```
 
 Install copy:
 
 ```text
-CoffeeCat is currently loaded as an unpacked Chrome extension. Open Chrome extensions, enable Developer mode, choose Load unpacked, and select the CoffeeCat folder.
+Brûlée Focus is currently loaded as an unpacked Chrome extension. Open Chrome extensions, enable Developer mode, choose Load unpacked, and select the Brûlée Focus folder.
 ```
 
 ## Implementation Notes For The Website
@@ -193,10 +193,10 @@ CoffeeCat is currently loaded as an unpacked Chrome extension. Open Chrome exten
 
 ## Acceptance Criteria For A First Website Version
 
-- The first screen clearly shows CoffeeCat, the cup, and the product name.
+- The first screen clearly shows Brûlée Focus, the cup, and the product name.
 - The site explains what the extension does in under 10 seconds.
 - The Focus Coffee draining behavior and coffee-flood break moment are visible or demonstrated.
 - Privacy claims match the current extension implementation.
 - Local install instructions are accurate.
-- The design uses actual CoffeeCat assets.
+- The design uses actual Brûlée Focus assets.
 - The site works on mobile and desktop without overlapping text or clipped controls.

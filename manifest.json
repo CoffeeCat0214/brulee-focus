@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "CoffeeCat",
+  "name": "Brûlée Focus: Cozy Focus Timer",
   "version": "1.0.0",
-  "description": "A tiny coffee cat that keeps you company and pours you a focus timer you can see.",
+  "description": "Meet Brûlée, your Coffee Cat. A cozy focus timer you read by watching her cup empty.",
   "minimum_chrome_version": "111",
   "icons": {
     "16": "assets/icons/icon-16.png",
@@ -11,7 +11,7 @@
     "128": "assets/icons/icon-128.png"
   },
   "action": {
-    "default_title": "CoffeeCat",
+    "default_title": "Brûlée Focus",
     "default_popup": "src/popup.html",
     "default_icon": {
       "16": "assets/icons/icon-16.png",
@@ -20,22 +20,34 @@
       "128": "assets/icons/icon-128.png"
     }
   },
-  "permissions": ["storage", "alarms"],
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
   "background": {
     "service_worker": "src/background.js"
   },
   "content_scripts": [
     {
-      "matches": ["http://*/*", "https://*/*"],
-      "css": ["src/content.css"],
-      "js": ["src/settings.js", "src/mug-geometry.js", "src/content.js"],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "css": [
+        "src/content.css"
+      ],
+      "js": [
+        "src/settings.js",
+        "src/mug-geometry.js",
+        "src/content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
       "resources": [
-        "assets/coffeecat-buddy.png",
+        "assets/brulee-buddy.png",
         "assets/mug/mug-back.png",
         "assets/mug/mug-fill.png",
         "assets/mug/mug-front.png",
@@ -44,7 +56,10 @@
         "src/float.css",
         "src/intermission.css"
       ],
-      "matches": ["http://*/*", "https://*/*"]
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ]
     }
   ]
 }

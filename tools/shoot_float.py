@@ -64,7 +64,7 @@ PAGE = """<!doctype html>
   }}
   .cell {{ text-align: center; }}
   .cell p {{ margin: 16px 0 0; opacity: 0.55; }}
-  /* Stands in for #coffeecat-root in src/content.css. Only the box matters
+  /* Stands in for #brulee-root in src/content.css. Only the box matters
      here: the fixed positioning and the z-index are about living on someone
      else's page, which this harness is not.
 
@@ -151,8 +151,8 @@ def host_style(px: int, geometry: dict) -> str:
 def build_markup(asset_prefix: str) -> str:
     """The tree buildCat() creates, with extension URLs swapped for local paths."""
     return f"""
-      <button class="coffee-cat" type="button" aria-label="CoffeeCat browser buddy">
-        <img class="cat-art" src="{asset_prefix}coffeecat-buddy.png" alt="">
+      <button class="coffee-cat" type="button" aria-label="Brûlée Focus browser buddy">
+        <img class="cat-art" src="{asset_prefix}brulee-buddy.png" alt="">
         <span class="coffee-meter" aria-hidden="true">
           <img class="mug-layer mug-back" src="{asset_prefix}mug/mug-back.png" alt="">
           <span class="mug-window">
@@ -211,9 +211,9 @@ def main() -> None:
 
     assert_sizes_match_content_js()
     chrome = args.chrome or find_chrome()
-    out_dir = args.out or Path(tempfile.mkdtemp(prefix="coffeecat-float-"))
+    out_dir = args.out or Path(tempfile.mkdtemp(prefix="brulee-float-"))
     out_dir.mkdir(parents=True, exist_ok=True)
-    workdir = Path(tempfile.mkdtemp(prefix="coffeecat-float-stage-"))
+    workdir = Path(tempfile.mkdtemp(prefix="brulee-float-stage-"))
 
     # The float's stylesheets are adopted into a shadow root at runtime, where
     # :host matches the host element. Linked into a document they have to match

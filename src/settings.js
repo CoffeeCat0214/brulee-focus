@@ -1,4 +1,4 @@
-/* The one definition of what a CoffeeCat session is.
+/* The one definition of what a Brûlée Focus session is.
  *
  * Four surfaces need it: the background service worker (which owns session
  * completion), the content script (float + intermission), the popup, and the
@@ -210,7 +210,7 @@
     return `${minutes}:${String(seconds).padStart(2, "0")}`;
   }
 
-  scope.COFFEECAT = Object.freeze({
+  scope.BRULEE = Object.freeze({
     BREW_MODES,
     DEFAULT_BREW_MODE,
     DEFAULT_SETTINGS,

@@ -9,7 +9,7 @@ const {
   getCoffeeRemaining,
   getValidDuration,
   normalizeSettings
-} = globalThis.COFFEECAT;
+} = globalThis.BRULEE;
 
 const COFFEE_RENDER_INTERVAL_MS = 250;
 const SIZES = Object.keys(SIZE_MAP);
@@ -19,7 +19,7 @@ const SIZES = Object.keys(SIZE_MAP);
 // Sourced from the generator rather than typed here: the same number sets the
 // sprite's drain range in the content script, and a literal in this file would
 // silently desync from the cup's actual geometry the first time it changed.
-const CUP_INTERIOR_HEIGHT = globalThis.COFFEECAT_MUG.SVG.interiorHeight;
+const CUP_INTERIOR_HEIGHT = globalThis.BRULEE_MUG.SVG.interiorHeight;
 
 const paneFocus = document.getElementById("pane-focus");
 const paneSettings = document.getElementById("pane-settings");

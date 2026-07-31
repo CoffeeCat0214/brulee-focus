@@ -44,10 +44,10 @@ const {
   getCoffeeRemaining,
   normalizeSettings,
   DEFAULT_SETTINGS
-} = globalThis.COFFEECAT;
+} = globalThis.BRULEE;
 
-const FOCUS_ALARM = "coffeecat-focus-end";
-const BREAK_ALARM = "coffeecat-break-end";
+const FOCUS_ALARM = "brulee-focus-end";
+const BREAK_ALARM = "brulee-break-end";
 
 /* Keys that can change when the alarm should. Storage also carries position,
    size and enabled, and rescheduling on those would rearm the alarm every time

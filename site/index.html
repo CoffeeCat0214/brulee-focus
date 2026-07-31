@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CoffeeCat: a pixel coffee cat in residence on your browser</title>
-    <meta name="description" content="Crème Brûlée is a pixel cat in residence on the pages you read. Pour a Focus Coffee, watch her cup empty, and take a five-minute intermission when it does. Add her from the Chrome Web Store.">
+    <title>Brûlée Focus: meet Brûlée, your Coffee Cat</title>
+    <meta name="description" content="Meet Brûlée, your Coffee Cat. A cozy focus timer that helps you work and rest: pour a Focus Coffee, watch her cup empty, and take a five-minute intermission when it does.">
 
     <!-- Paths are relative to the repo root, not site/. Serve the repo root
          (python3 -m http.server) or ../assets and ../src will 404. Fonts are
@@ -14,9 +14,9 @@
     <link rel="apple-touch-icon" href="../assets/icons/icon-128.png">
 
     <meta property="og:type" content="website">
-    <meta property="og:title" content="CoffeeCat">
-    <meta property="og:description" content="A very small cat who takes coffee seriously.">
-    <meta property="og:image" content="../assets/coffeecat-buddy-large.png">
+    <meta property="og:title" content="Brûlée Focus">
+    <meta property="og:description" content="Meet Brûlée, your Coffee Cat.">
+    <meta property="og:image" content="../assets/brulee-buddy-large.png">
     <meta name="twitter:card" content="summary_large_image">
 
     <!-- The wordmark is the first thing painted at display size; preloading the
@@ -30,7 +30,7 @@
       <div class="wrap nav-inner">
         <a class="nav-mark" href="#top">
           <img src="../assets/icons/icon-48.png" alt="">
-          CoffeeCat
+          Brûlée Focus
         </a>
         <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">Menu</button>
         <nav class="nav-links" id="site-nav" aria-label="Sections">
@@ -51,12 +51,12 @@
              than a mark. -->
         <div class="wrap hero-grid">
           <p class="eyebrow" data-reveal>Chrome extension</p>
-          <h1 data-reveal>CoffeeCat</h1>
+          <h1 data-reveal>Brûlée Focus</h1>
 
           <div class="hero-lower">
             <div class="hero-copy">
-              <p class="tagline" data-reveal>A very small cat who takes coffee seriously.</p>
-              <p class="lede" data-reveal>Crème Brûlée keeps to the corner of whatever page you happen to be reading. Pour a Focus Coffee and her cup begins to empty, quietly, in time with your afternoon.</p>
+              <p class="tagline" data-reveal>Meet Brûlée, your Coffee Cat.</p>
+              <p class="lede" data-reveal>A cozy focus timer that helps you work and rest. Brûlée keeps to the corner of whatever page you happen to be reading, and her cup empties quietly, in time with your afternoon.</p>
               <div class="hero-actions" data-reveal>
                 <a class="btn" href="#install">How to install</a>
                 <a class="btn secondary" href="#gatekeeper">See the intermission</a>
@@ -69,7 +69,7 @@
                 <span></span>
                 <span></span>
                 <span></span>
-                <strong>coffeecat.local</strong>
+                <strong>brulee.local</strong>
               </div>
               <div class="browser-page">
                 <div class="feed-lines" aria-hidden="true">
@@ -78,7 +78,7 @@
                   <span></span>
                 </div>
                 <div class="demo-cat">
-                  <img src="../assets/coffeecat-buddy-large.png" alt="">
+                  <img src="../assets/brulee-buddy-large.png" alt="">
                   <!-- Same four sprite layers the extension overlays, stacked in
                        the same order. See tools/render_mug.py. -->
                   <span class="demo-cup" aria-hidden="true">
@@ -154,7 +154,7 @@
                 <span></span>
                 <span></span>
                 <div class="intermission-coffee"></div>
-                <img src="../assets/coffeecat-buddy.png" alt="">
+                <img src="../assets/brulee-buddy.png" alt="">
               </div>
               <figcaption>
                 <strong>Intermission</strong>
@@ -238,7 +238,7 @@
             <p class="eyebrow">Technical notes</p>
           </div>
           <div class="act-body notes" data-reveal>
-            <p>CoffeeCat is a Manifest V3 extension. It requests the <code>storage</code> permission and runs on <code>http</code> and <code>https</code> pages so Crème Brûlée can sit beside what you are reading.</p>
+            <p>Brûlée Focus is a Manifest V3 extension. It requests the <code>storage</code> permission and runs on <code>http</code> and <code>https</code> pages so Crème Brûlée can sit beside what you are reading.</p>
             <p>Chrome does not allow extensions to draw freely in the native tab strip, which is why she lives on the page rather than padding along your tabs.</p>
             <p>The coffee break is a local, page-level reminder to rest. It is not a site blocker, and it never stops you browsing.</p>
           </div>
@@ -263,7 +263,7 @@
                    become its own grid item and drop onto the next row. -->
               <!-- LAUNCH TODO: replace with the real listing URL once the item is public.
                    See step 6 of LAUNCH.md. -->
-              <li data-reveal><span>Open the CoffeeCat listing on the Chrome Web Store.</span></li>
+              <li data-reveal><span>Open the Brûlée Focus listing on the Chrome Web Store.</span></li>
               <li data-reveal><span>Choose Add to Chrome.</span></li>
               <li data-reveal><span>Approve the two she asks for: <code>storage</code> to remember your settings, <code>alarms</code> to end a session on time.</span></li>
               <li data-reveal><span>Open any web page and pour the first coffee.</span></li>
@@ -273,10 +273,10 @@
                  type comes from the `.notes p` descendant rule, so the class has
                  to sit on a parent to take effect. -->
             <div class="notes" data-reveal>
-              <p>Prefer to run her from source? Turn on Developer mode at <code>chrome://extensions</code>, choose Load unpacked, and select the CoffeeCat folder.</p>
+              <p>Prefer to run her from source? Turn on Developer mode at <code>chrome://extensions</code>, choose Load unpacked, and select the Brûlée Focus folder.</p>
             </div>
             <div class="install-close" data-reveal>
-              <img src="../assets/coffeecat-buddy.png" alt="">
+              <img src="../assets/brulee-buddy.png" alt="">
               <p><strong>Crème Brûlée will be waiting.</strong><span>One tiny cat, one cup at a time.</span></p>
             </div>
           </div>
@@ -288,7 +288,7 @@
       <div class="wrap">
         <span class="footer-mark">
           <img src="../assets/icons/icon-48.png" alt="">
-          CoffeeCat
+          Brûlée Focus
         </span>
         <p>Crème Brûlée, cat in residence, keeping you company while you browse.</p>
         <small>Set in Geist and Geist Mono by Vercel, licensed under the SIL Open Font License.</small>

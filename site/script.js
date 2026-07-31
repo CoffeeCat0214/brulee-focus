@@ -1,4 +1,4 @@
-const { FILL_WINDOW, DRAIN_RANGE } = globalThis.COFFEECAT_MUG;
+const { FILL_WINDOW, DRAIN_RANGE } = globalThis.BRULEE_MUG;
 
 const demoCup = document.querySelector(".demo-cup");
 const demoFill = document.getElementById("demo-fill");

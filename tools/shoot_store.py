@@ -214,7 +214,7 @@ def scene_intermission(workdir: Path) -> str:
       <div class="chrome-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">your page, still there underneath</span></div>
       <div class="lines"><span></span><span></span><span></span><span></span><span></span></div>
       <div class="host">
-        <section class="intermission" aria-label="CoffeeCat intermission">
+        <section class="intermission" aria-label="Brûlée Focus intermission">
           <div class="coffee-rise" aria-hidden="true">
             <span class="coffee-wave wave-a"></span><span class="coffee-wave wave-b"></span>
           </div>
@@ -287,7 +287,7 @@ def main() -> None:
     chrome = args.chrome or find_chrome()
     out_dir = args.out
     out_dir.mkdir(parents=True, exist_ok=True)
-    workdir = Path(tempfile.mkdtemp(prefix="coffeecat-store-"))
+    workdir = Path(tempfile.mkdtemp(prefix="brulee-store-"))
 
     # The popup is captured by its own tool, shim and all, rather than
     # re-implemented here. If it can render for review it can render for a

@@ -1,5 +1,5 @@
 /* ── The float: cat, mug meter, purr bubble ──────────────────────────────
-   Adopted into #coffeecat-root's closed shadow root alongside shared.css,
+   Adopted into #brulee-root's closed shadow root alongside shared.css,
    which supplies every token this file reads. See loadSheet() in content.js.
 
    This used to be a 340-line template literal inside content.js, which meant
@@ -9,7 +9,7 @@
 
    The mug geometry arrives as custom properties (--win-* and --liq-*) set on
    the host element by applySettings(). They are deliberately not given
-   fallbacks: the values come from tools/render_mug.py via COFFEECAT_MUG, and a
+   fallbacks: the values come from tools/render_mug.py via BRULEE_MUG, and a
    hand-written fallback here would be a second copy of generated geometry,
    which is exactly the drift the generator exists to prevent. If the
    properties are missing the cat is missing too, because the same JS builds

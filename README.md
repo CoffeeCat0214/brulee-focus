@@ -1,6 +1,6 @@
-# CoffeeCat
+# Brûlée Focus
 
-CoffeeCat is a Chrome extension that puts a coffee cat buddy on the pages you browse, with a Focus Coffee timer you read by watching her cup empty.
+Brûlée Focus is a Chrome extension that puts Crème Brûlée, the Coffee Cat, on the pages you browse, with a cozy focus timer you read by watching her cup empty.
 
 - **Launching it:** see [LAUNCH.md](LAUNCH.md).
 - **Privacy policy:** [site/privacy.html](site/privacy.html).
@@ -11,26 +11,26 @@ CoffeeCat is a Chrome extension that puts a coffee cat buddy on the pages you br
 1. Open Chrome and go to `chrome://extensions`.
 2. Turn on **Developer mode**.
 3. Click **Load unpacked**.
-4. Select this `CoffeeCat` folder.
-5. Visit a normal `http` or `https` page and CoffeeCat will appear near the bottom-right.
+4. Select the folder this README is in.
+5. Visit a normal `http` or `https` page and Brûlée will appear near the bottom-right.
 
 Chrome 111 or newer. That floor is `color-mix()` in the intermission's stylesheet, and it is declared as `minimum_chrome_version` so older Chromes are never offered the extension.
 
 ## Controls
 
-- Click the CoffeeCat toolbar icon to open settings.
-- Toggle CoffeeCat on or off.
+- Click the Brûlée Focus toolbar icon to open settings.
+- Toggle Brûlée on or off.
 - Choose small, medium, or large.
-- Drag CoffeeCat to a new spot on the page.
-- Click CoffeeCat to sip and purr.
+- Drag Brûlée to a new spot on the page.
+- Click Brûlée to sip and purr.
 - Use **Focus Coffee** to choose Espresso Shot, Slow Pour, Cold Brew, or Decaf with the brew mode toggles.
 - The cup drains as time runs out. Every finished session ends in a five-minute intermission, whichever brew you picked.
 - During the intermission the cup refills instead. Hit **Refill coffee** when you are ready to set up the next session, or hit **Snooze** (or press `Escape`) to dismiss it without restarting. Leave it alone and it clears itself when the countdown runs out.
-- Use **Reset position** to return CoffeeCat to the default corner.
+- Use **Reset position** to return Brûlée to the default corner.
 
 ## Privacy
 
-CoffeeCat has no backend, no analytics, no accounts, and makes no network requests. Settings live in `chrome.storage.local`, on your own machine: enabled state, size, page position, timer state, and a local focus tally. It does not read browsing history or page content. The full policy is at [site/privacy.html](site/privacy.html).
+Brûlée Focus has no backend, no analytics, no accounts, and makes no network requests. Settings live in `chrome.storage.local`, on your own machine: enabled state, size, page position, timer state, and a local focus tally. It does not read browsing history or page content. The full policy is at [site/privacy.html](site/privacy.html).
 
 It asks for two permissions. `storage` keeps the settings above. `alarms` is what ends a focus session at the right moment even when no page is open.
 
@@ -53,7 +53,7 @@ Session completion belongs to the service worker alone. It used to happen in whi
 python3 tools/package.py
 ```
 
-Writes `dist/coffeecat-<version>.zip` and prints its SHA-256. The build is an explicit allowlist, not a zip of the repo: the marketing site, the tests, these tools, the illustration master and the archived art are all deliberately out. Builds are deterministic, so the same commit always produces the same bytes.
+Writes `dist/brulee-focus-<version>.zip` and prints its SHA-256. The build is an explicit allowlist, not a zip of the repo: the marketing site, the tests, these tools, the illustration master and the archived art are all deliberately out. Builds are deterministic, so the same commit always produces the same bytes.
 
 ## Tests
 
@@ -69,12 +69,12 @@ Both sprites are generated, and both are checked by regenerating and diffing:
 
 ```
 python3 tools/render_mug.py      # assets/mug/*.png + src/mug-geometry.js
-python3 tools/render_buddy.py    # assets/coffeecat-buddy*.png
+python3 tools/render_buddy.py    # assets/brulee-buddy*.png
 ```
 
 `tools/render_mug.py` is the source of truth for the cup: it emits the four sprite layers *and* the SVG paths the popup and the intermission draw, so the raster and the vector cannot drift.
 
-`tools/render_buddy.py` box-filters `assets/source/coffeecat-buddy-master.png` down to delivery size. Two sizes come out of it: a 200px sprite for the extension, and a 512px render for the site's hero. The extension's is small on purpose: that file is decoded per tab on every page you visit, and the float paints it at most 116px square.
+`tools/render_buddy.py` box-filters `assets/source/brulee-buddy-master.png` down to delivery size. Two sizes come out of it: a 200px sprite for the extension, and a 512px render for the site's hero. The extension's is small on purpose: that file is decoded per tab on every page you visit, and the float paints it at most 116px square.
 
 Neither sprite is painted with `image-rendering: pixelated` any more. The master is a continuous-tone illustration, not block pixel art, so nearest-neighbour was not preserving a pixel grid (there is none), it was dropping ~98% of rows and columns and keeping whatever landed on the sampling grid. That gave a stair-stepped outline and whiskers broken into dashes.
 
@@ -86,17 +86,17 @@ Serve the **repo root** and open `http://localhost:8000/site/`:
 python3 -m http.server 8000
 ```
 
-The page reaches back into `../assets` and `../src`, so opening `site/index.html` straight off the filesystem leaves the sprites and the mug geometry 404ing. It uses the same CoffeeCat assets and demonstrates the draining cup and the intermission without calling Chrome extension APIs.
+The page reaches back into `../assets` and `../src`, so opening `site/index.html` straight off the filesystem leaves the sprites and the mug geometry 404ing. It uses the same art the extension ships and demonstrates the draining cup and the intermission without calling Chrome extension APIs.
 
 Type is [Geist and Geist Mono](https://github.com/vercel/geist-font), vendored as variable `.woff2` under `site/fonts/` and licensed under the SIL OFL (`site/fonts/LICENSE.txt`). They are self-hosted rather than CDN-linked so the site keeps the extension's no-network property.
 
 ## Notes
 
-Chrome does not allow extensions to freely draw inside the browser's native tab strip, so CoffeeCat appears as a friendly on-page buddy instead.
+Chrome does not allow extensions to freely draw inside the browser's native tab strip, so Brûlée appears as a friendly on-page buddy instead.
 
 The Focus Coffee cup updates its liquid level several times per second for a smoother drain. The coffee surface is intentionally subtle so the changing level remains easier to read than the crema highlight.
 
-The intermission appears on the current page when Focus Coffee ends, on every brew mode. It is a local, page-level break reminder, not a network blocker. It only draws where the content script runs, so an `http`/`https` tab must be open and CoffeeCat must be enabled. It draws over the page without capturing it: only the intermission panel takes clicks, so the page underneath stays usable for anyone who needs it.
+The intermission appears on the current page when Focus Coffee ends, on every brew mode. It is a local, page-level break reminder, not a network blocker. It only draws where the content script runs, so an `http`/`https` tab must be open and Brûlée must be enabled. It draws over the page without capturing it: only the intermission panel takes clicks, so the page underneath stays usable for anyone who needs it.
 
 ## Styling
 

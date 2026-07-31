@@ -1,6 +1,6 @@
-# Launching CoffeeCat
+# Launching Brûlée Focus
 
-A runbook for putting CoffeeCat 1.0.0 on the Chrome Web Store, written July 2026.
+A runbook for putting Brûlée Focus 1.0.0 on the Chrome Web Store, written July 2026.
 Everything here is current as of that date; where Google is likely to have moved
 things, it says so.
 
@@ -33,7 +33,7 @@ From the repo root:
 
 ```bash
 python3 tests/test_extension_integrity.py     # 20 tests, all must pass
-python3 tools/package.py                      # -> dist/coffeecat-1.0.0.zip
+python3 tools/package.py                      # -> dist/brulee-focus-1.0.0.zip
 ```
 
 `package.py` prints the file count, the zipped size and a SHA-256. Keep that
@@ -44,7 +44,7 @@ extension actually needs: no marketing site, no tests, no tooling, no
 illustration master. Sanity-check it if you like:
 
 ```bash
-unzip -l dist/coffeecat-1.0.0.zip
+unzip -l dist/brulee-focus-1.0.0.zip
 ```
 
 `manifest.json` must be at the **archive root**, not inside a wrapper folder. It
@@ -57,11 +57,11 @@ Not the repo, the zip. They differ, and the whole point of the packager is that
 they differ.
 
 ```bash
-mkdir -p /tmp/coffeecat-check && unzip -o dist/coffeecat-1.0.0.zip -d /tmp/coffeecat-check
+mkdir -p /tmp/brulee-check && unzip -o dist/brulee-focus-1.0.0.zip -d /tmp/brulee-check
 ```
 
 Then in Chrome: `chrome://extensions` → Developer mode on → **Load unpacked** →
-select `/tmp/coffeecat-check`. Walk this list:
+select `/tmp/brulee-check`. Walk this list:
 
 - [ ] The cat appears bottom-right on an ordinary `https` page.
 - [ ] Dragging her moves her; **Reset position** puts her back.
@@ -87,23 +87,52 @@ Anything that fails here fails in review too, and review costs days.
 ## 2. Deploy the site and the privacy policy
 
 The Web Store **requires** a privacy policy URL for any extension that handles
-user data, and it interprets that broadly. CoffeeCat collects nothing, but it
+user data, and it interprets that broadly. Brûlée Focus collects nothing, but it
 still needs the URL. `site/privacy.html` is written and ready.
 
-The site expects to be served from the **repo root** (its paths reach into
-`../assets`). The simplest hosting that preserves that:
+The site is authored to be served from the **repo root** (its pages reach into
+`../assets` and `../src`), which is right for local development and wrong for a
+deploy. `tools/build_site.py` stages a third layout: the site at the root of its
+own tree, with those paths rewritten.
 
-**GitHub Pages.** Push the repo to GitHub, then Settings → Pages → deploy from
-branch `main`, folder `/ (root)`. You get:
+```bash
+python3 tools/build_site.py --domain bruleefocus.com
+```
 
-- Site: `https://<user>.github.io/CoffeeCat/site/`
-- Policy: `https://<user>.github.io/CoffeeCat/site/privacy.html`
+That writes `dist/site/`, and it fails the build rather than deploy a broken
+link: it checks every `href`, `src` and `og:image` resolves inside the tree. The
+`--domain` flag makes `og:image` and `og:url` absolute, which link-preview
+crawlers require and which the repo cannot hardcode.
 
-Verify the policy URL loads in a private window before pasting it into the
-dashboard. A 404 there is an automatic rejection.
+**Cloudflare Pages.** Create a project, then:
 
-> The repo currently has **no git remote**. `git remote -v` prints nothing, so
-> this step starts with creating the GitHub repo and pushing.
+- Build command: *(empty)*
+- Build output directory: `dist/site`
+- Custom domain: `bruleefocus.com`
+
+You get:
+
+- Site: `https://bruleefocus.com/`
+- Policy: `https://bruleefocus.com/privacy.html`, and `…/privacy` if Cloudflare's
+  clean-URL resolution is doing what it documents
+
+**Check both before you paste either into the dashboard**, in a private window.
+Cloudflare Pages documents serving `/privacy` for `privacy.html`, but that is
+their behaviour and not something this repo controls, and a 404 on the privacy
+URL is an automatic rejection. `/privacy.html` is the one that cannot break, so
+use it unless you have confirmed the short form resolves. A local
+`python3 -m http.server` will always 404 on `/privacy`; it has no clean-URL
+resolution, so it cannot answer this question for you.
+
+That URL is awkward to change once it is on the listing, so decide it now.
+
+> The repo has **no git remote**. `git remote -v` prints nothing, so if you want
+> Cloudflare's Git integration rather than a direct upload, this step starts with
+> creating the GitHub repo and pushing. Cloudflare Pages can build from a private
+> repo on the free plan, so this does not force the source public.
+
+Buy the domain through **Cloudflare Registrar** if you have not: at-cost, and it
+wires into Pages without a DNS detour.
 
 Update the "Last updated" date in `site/privacy.html` if you edit the policy.
 
@@ -113,7 +142,7 @@ Update the "Last updated" date in `site/privacy.html` if you edit the policy.
 
 Go to the [Developer Dashboard](https://chrome.google.com/webstore/devconsole),
 pay the $5 if you have not, then **Add new item** and upload
-`dist/coffeecat-1.0.0.zip`.
+`dist/brulee-focus-1.0.0.zip`.
 
 Upload first, fill the listing after. The upload is what generates your extension
 ID, and it validates the manifest immediately, so you find out about a packaging
@@ -125,16 +154,21 @@ problem before you have written any copy.
 
 ### Store listing tab
 
-**Title** (45 char max)
+**Title.** Taken from `manifest.name`, not typed into the dashboard. It is
+already set to:
 
 ```
-CoffeeCat
+Brûlée Focus: Cozy Focus Timer
 ```
 
-**Summary** (132 char max). This is what shows in search results:
+The bare brand would be cleaner in `chrome://extensions`, but the store's item
+title is the manifest name, and "Focus Timer" is what people actually search.
+`action.default_title` keeps the short form for the toolbar tooltip.
+
+**Summary** (132 char max). Taken from `manifest.description`. Already set to:
 
 ```
-A tiny coffee cat who sits on your pages and keeps time. Pour a Focus Coffee and watch her cup empty.
+Meet Brûlée, your Coffee Cat. A cozy focus timer you read by watching her cup empty.
 ```
 
 **Description**, the long field. This draft is honest about what the extension
@@ -142,8 +176,10 @@ does and does not do, which matters because reviewers read it against your
 permissions:
 
 ```
-CoffeeCat puts a small coffee cat in the corner of the pages you browse, and
-gives her a timer you read by looking at her cup.
+Meet Brûlée, your Coffee Cat.
+
+Brûlée Focus puts a small coffee cat in the corner of the pages you browse, and
+gives her a cozy focus timer you read by looking at her cup.
 
 Pour a Focus Coffee and the coffee starts going down, quietly, in time with your
 session. When the cup runs out, the session does too: coffee rises over the page
@@ -163,17 +199,25 @@ purr, make her small or large, or switch her off entirely.
 
 Private by construction:
 - No backend, no analytics, no accounts, no telemetry.
-- CoffeeCat makes no network requests at all.
+- Brûlée Focus makes no network requests at all.
 - Your settings live in local extension storage on your own machine.
 - It never reads your browsing history or the contents of your pages.
 
+Brûlée Focus does not block websites. The intermission draws over the page and
+lets your clicks through: it is a reminder, not a wall.
+
 Chrome will warn that the extension can read and change your data on the sites
 you visit. That warning is triggered by needing to run on ordinary pages in order
-to draw a cat on them. It describes what Chrome permits, not what CoffeeCat does.
-The source is public.
+to draw a cat on them. It describes what Chrome permits, not what Brûlée Focus
+does.
 ```
 
-**Category:** Workflow & Planning. (Fun is tempting, and CoffeeCat is fun, but the
+> Do not add "blocks distracting websites" to any of this. It is the obvious
+> line for a focus timer and it is false here, in a field a reviewer reads
+> against your permissions. `test_brew_modes_match_markup` blocks the phrase in
+> the extension's own UI for the same reason.
+
+**Category:** Workflow & Planning. (Fun is tempting, and Brûlée Focus is fun, but the
 timer is the thing people search for. Revisit if search traffic disappoints.)
 
 **Language:** English.
@@ -204,7 +248,7 @@ This is the part that most often sends a first submission back. Be precise.
 - **Single purpose description:**
 
   ```
-  CoffeeCat displays a cat companion and a visual focus timer on web pages, so a
+  Brûlée Focus displays a cat companion and a visual focus timer on web pages, so a
   focus session and the break that follows it are visible where the user is
   already looking.
   ```

@@ -8,7 +8,7 @@
    properties, which is how the geometry and sizing properties set from
    applySettings() reach through the shadow boundary. */
 
-#coffeecat-root {
+#brulee-root {
   all: initial;
   position: fixed;
   z-index: 2147483647;
@@ -21,7 +21,7 @@
   pointer-events: auto;
 }
 
-#coffeecat-intermission-root {
+#brulee-intermission-root {
   all: initial;
   position: fixed;
   z-index: 2147483647;

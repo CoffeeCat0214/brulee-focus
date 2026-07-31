@@ -1,4 +1,4 @@
-/* CoffeeCat marketing site.
+/* Brûlée Focus marketing site.
 
    Direction: editorial paper with one dark act, drawn from studio-size.com and
    humanmade.co.jp. Both of those sites reach "designed" the same way, and it is
@@ -143,7 +143,7 @@
   /* Type. Display is driven off --u; everything from the lede down is fixed so
      it respects the browser's font-size setting. */
   /* The vw term only bites below ~380px, where --u has bottomed out on its
-     clamp floor and "CoffeeCat" at 18u would run 17px past the measure on a
+     clamp floor and "Brûlée Focus" at 18u would run 17px past the measure on a
      320px screen. Above that the min() always picks the --u term. */
   --t-display: min(calc(var(--u) * 18), 19vw);
   --t-h2: clamp(30px, 3.6vw, 44px);
@@ -595,7 +595,7 @@ button:focus-visible {
    The shadow itself is now soft rather than the old `0 18px 0` hard offset --
    that was the sticker idiom this redesign removed everywhere else, and on the
    dark demo panel it read as a smudge rather than as depth. */
-/* This one reads coffeecat-buddy-large.png, not the sprite the extension ships.
+/* This one reads brulee-buddy-large.png, not the sprite the extension ships.
    The hero paints the cat at 252px, which wants 504 device px on a 2x display;
    the extension's sprite is cut to the ~181px the float can actually paint. Two
    files rather than one because sharing would either blur the hero or make every
@@ -613,7 +613,7 @@ button:focus-visible {
 
 /* The demo cup is the extension's own sprite, not a lookalike drawn in CSS.
    The --win-* / --liq-* values are written by script.js from the generated
-   COFFEECAT_MUG geometry, so this page cannot drift away from the product the
+   BRULEE_MUG geometry, so this page cannot drift away from the product the
    way a hand-tuned box would. Do not retune these by eye. */
 .demo-cup {
   position: absolute;
