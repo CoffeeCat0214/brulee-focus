@@ -235,9 +235,10 @@ python3 tools/shoot_store.py     # -> dist/store/*.png, three at 1280x800
   companion, focus coffee, intermission. Upload all three in that order; the
   first is the one people see.
 - **Store icon**: 128x128. Use `assets/icons/icon-128.png`.
-- **Small promo tile**: 440x280. *Optional but do it.* Without one you are
-  ineligible for any Chrome Web Store featuring. This repo does not generate one;
-  it is the single asset you will need to make by hand.
+- **Small promo tile**: 440x280, generated as `promo-small-tile.png` by the same
+  command. Nominally optional; in practice do it, because without one the item is
+  ineligible for any Chrome Web Store featuring and that cannot be applied
+  retroactively.
 - **Marquee promo tile**: 1400x560. Only needed if you are chasing a feature
   spot. Skip for launch.
 

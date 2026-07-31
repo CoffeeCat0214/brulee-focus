@@ -123,7 +123,8 @@ def find_chrome() -> str:
     sys.exit("No Chrome binary found. Pass --chrome, or install Google Chrome.")
 
 
-def capture(chrome: str, page: Path, out: Path) -> None:
+def capture(chrome: str, page: Path, out: Path,
+            size: tuple[int, int] = (WIDTH, HEIGHT)) -> None:
     result = subprocess.run(
         [
             chrome,
@@ -131,7 +132,7 @@ def capture(chrome: str, page: Path, out: Path) -> None:
             "--disable-gpu",
             "--hide-scrollbars",
             "--force-device-scale-factor=1",
-            f"--window-size={WIDTH},{HEIGHT}",
+            f"--window-size={size[0]},{size[1]}",
             "--virtual-time-budget=2500",
             f"--screenshot={out}",
             page.as_uri(),
@@ -278,6 +279,63 @@ def cup_markup(geometry: dict) -> str:
       </svg>"""
 
 
+# The small promo tile. Its own size, so it gets its own capture pass.
+#
+# Optional in the sense that the store will accept a listing without one, and
+# not optional in practice: without a small tile the item is ineligible for any
+# Chrome Web Store featuring, and that eligibility cannot be applied
+# retroactively to a launch.
+PROMO_WIDTH, PROMO_HEIGHT = 440, 280
+
+
+def scene_promo() -> str:
+    """440x280. Read at thumbnail size, so it carries the cat and the name only.
+
+    Deliberately not a screenshot. A promo tile is shown small and in a grid
+    next to other tiles, where UI detail turns to mush; the two things that have
+    to survive that are the silhouette and the wordmark. The large buddy render
+    is used rather than the extension's sprite because this paints her at ~190px
+    and the shipped sprite tops out at 200px wide.
+    """
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<style>
+  * {{ box-sizing: border-box; }}
+  body {{
+    margin: 0;
+    width: {PROMO_WIDTH}px;
+    height: {PROMO_HEIGHT}px;
+    overflow: hidden;
+    background: {BACKDROP};
+    font-family: system-ui, -apple-system, sans-serif;
+    color: {INK};
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    padding: 0 34px;
+  }}
+  img {{
+    height: 196px;
+    width: auto;
+    flex: none;
+    filter: drop-shadow(0 10px 18px rgba(23, 19, 39, 0.22));
+  }}
+  h1 {{
+    margin: 0 0 6px;
+    font-size: 33px;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 600;
+  }}
+  p {{ margin: 0; font-size: 15px; line-height: 1.35; color: {INK_SOFT}; }}
+</style></head><body>
+  <img src="assets/brulee-buddy-large.png" alt="">
+  <div>
+    <h1>Br&ucirc;l&eacute;e<br>Focus</h1>
+    <p>A cozy focus timer,<br>kept by a coffee cat.</p>
+  </div>
+</body></html>"""
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=ROOT / "dist" / "store")
@@ -317,8 +375,14 @@ def main() -> None:
         capture(chrome, page, out_dir / name)
         print(f"  {out_dir / name}")
 
+    promo = workdir / "promo.html"
+    promo.write_text(scene_promo())
+    capture(chrome, promo, out_dir / "promo-small-tile.png", (PROMO_WIDTH, PROMO_HEIGHT))
+    print(f"  {out_dir / 'promo-small-tile.png'}")
+
     shutil.rmtree(workdir, ignore_errors=True)
-    print(f"\n{len(scenes)} screenshots at {WIDTH}x{HEIGHT}, ready for the store listing.")
+    print(f"\n{len(scenes)} screenshots at {WIDTH}x{HEIGHT}, "
+          f"plus a {PROMO_WIDTH}x{PROMO_HEIGHT} small promo tile.")
 
 
 if __name__ == "__main__":
