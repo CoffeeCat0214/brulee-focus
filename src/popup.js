@@ -1,28 +1,18 @@
-const DEFAULT_SETTINGS = {
-  enabled: true,
-  size: "medium",
-  position: null,
-  coffeeDurationMs: 25 * 60 * 1000,
-  coffeePausedRemainingMs: 25 * 60 * 1000,
-  coffeeBrewMode: "espresso",
-  coffeeBrewLabel: "Espresso Shot",
-  coffeeRunning: false,
-  coffeeStartedAt: null,
-  coffeeSessionId: null,
-  completedCoffeeSessionId: null,
-  breakRunning: false,
-  breakStartedAt: null,
-  breakDurationMs: 5 * 60 * 1000,
-  snoozeUsedForSession: false,
-  snoozeSessionRunning: false,
-  focusStats: {
-    sessionsCompleted: 0,
-    minutesProtected: 0,
-    cupsFinished: 0
-  }
-};
+/* Session shape, brew table and time maths are shared with the service worker
+   and the content script; see the header of src/settings.js. This file owns the
+   popup's presentation and its actions, and nothing about what a session is. */
+const {
+  DEFAULT_SETTINGS,
+  SIZE_MAP,
+  formatTime,
+  getBrewMode,
+  getCoffeeRemaining,
+  getValidDuration,
+  normalizeSettings
+} = globalThis.COFFEECAT;
+
 const COFFEE_RENDER_INTERVAL_MS = 250;
-const SIZES = ["small", "medium", "large"];
+const SIZES = Object.keys(SIZE_MAP);
 // Liquid travel in SVG user units. The liquid group translates down by
 // (1 - progress) * this to drain.
 //
@@ -30,51 +20,6 @@ const SIZES = ["small", "medium", "large"];
 // sprite's drain range in the content script, and a literal in this file would
 // silently desync from the cup's actual geometry the first time it changed.
 const CUP_INTERIOR_HEIGHT = globalThis.COFFEECAT_MUG.SVG.interiorHeight;
-
-/* Every string here must be checkable against the code in this repo. Earlier
-   versions carried fields describing a per-mode background-audio system and
-   named characters, none of which exist: the only sound path is playPurr() in
-   content.js, and there is a single cat image. `copy` therefore states
-   duration and break behaviour only — both are fields on this same object.
-   test_brew_modes_match_markup enforces this; do not add copy you cannot
-   point at an implementation for.
-
-   The flood tail repeats across all four strings on purpose. It used to be a
-   per-mode promise, and only Slow Pour kept it; now every session ends the same
-   way, and the line the user is actually looking at should say so rather than
-   making them infer it from a mode they did not pick. The 5 minutes is
-   breakDurationMs above. */
-const BREW_MODES = {
-  espresso: {
-    id: "espresso",
-    label: "Espresso Shot",
-    durationMs: 25 * 60 * 1000,
-    status: "espresso focus",
-    copy: "25 minutes, then a 5-minute coffee flood."
-  },
-  "slow-pour": {
-    id: "slow-pour",
-    label: "Slow Pour",
-    durationMs: 45 * 60 * 1000,
-    status: "slow pour focus",
-    copy: "45 minutes, then a 5-minute coffee flood."
-  },
-  "cold-brew": {
-    id: "cold-brew",
-    label: "Cold Brew",
-    durationMs: 90 * 60 * 1000,
-    status: "deep cold brew",
-    copy: "90 minutes, then a 5-minute coffee flood."
-  },
-  decaf: {
-    id: "decaf",
-    label: "Decaf",
-    durationMs: 15 * 60 * 1000,
-    status: "gentle decaf",
-    copy: "15 minutes, then a 5-minute coffee flood."
-  }
-};
-const DEFAULT_BREW_MODE = BREW_MODES.espresso;
 
 const paneFocus = document.getElementById("pane-focus");
 const paneSettings = document.getElementById("pane-settings");
@@ -111,7 +56,7 @@ const painted = {
   size: null
 };
 
-chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
+chrome.storage.local.get(DEFAULT_SETTINGS, (stored) => {
   settings = normalizeSettings(stored);
   renderSettings();
 
@@ -125,7 +70,7 @@ chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "sync") return;
+  if (areaName !== "local") return;
 
   settings = normalizeSettings({
     ...settings,
@@ -197,13 +142,9 @@ function renderCoffeeTimer() {
   });
 
   renderBrewSelector(activeMode, selectionLocked);
-
-  if (settings.coffeeRunning && remaining <= 0) {
-    completeFocusSession();
-  }
 }
 
-/* Deliberately does not repeat the brew label — the selected segment already
+/* Deliberately does not repeat the brew label: the selected segment already
    names the mode directly below this caption. */
 function getStatusText(activeMode, remaining, duration) {
   if (settings.breakRunning) return "break time";
@@ -213,7 +154,7 @@ function getStatusText(activeMode, remaining, duration) {
   return "ready to brew";
 }
 
-/* Mode copy only changes when the mode or the lock state does — not 4x/sec. */
+/* Mode copy only changes when the mode or the lock state does, not 4x/sec. */
 function renderBrewSelector(activeMode, selectionLocked) {
   write("modeKey", `${activeMode.id}|${selectionLocked}`, () => {
     brewDetailCopy.textContent = activeMode.copy;
@@ -288,7 +229,7 @@ function setupSegmentedKeys(items, onSelect) {
 
 setupSegmentedKeys(brewOptions, (option) => selectBrewMode(option.dataset.brewMode));
 setupSegmentedKeys(sizeOptions, (option) => {
-  chrome.storage.sync.set({ size: option.dataset.size });
+  chrome.storage.local.set({ size: option.dataset.size });
 });
 
 /* ── Panes ─────────────────────────────────────────────────────────────── */
@@ -315,11 +256,11 @@ document.addEventListener("keydown", (event) => {
 /* ── Actions ───────────────────────────────────────────────────────────── */
 
 enabledInput.addEventListener("change", () => {
-  chrome.storage.sync.set({ enabled: enabledInput.checked });
+  chrome.storage.local.set({ enabled: enabledInput.checked });
 });
 
 resetButton.addEventListener("click", () => {
-  chrome.storage.sync.set({ position: null });
+  chrome.storage.local.set({ position: null });
 });
 
 timerToggle.addEventListener("click", () => {
@@ -328,7 +269,7 @@ timerToggle.addEventListener("click", () => {
   const remaining = getCoffeeRemaining(settings);
 
   if (settings.coffeeRunning && remaining > 0) {
-    chrome.storage.sync.set({
+    chrome.storage.local.set({
       coffeeRunning: false,
       coffeeStartedAt: null,
       coffeePausedRemainingMs: remaining
@@ -338,7 +279,7 @@ timerToggle.addEventListener("click", () => {
 
   const nextRemaining = remaining || duration;
   const coffeeSessionId = `${Date.now()}-${Math.round(Math.random() * 100000)}`;
-  chrome.storage.sync.set({
+  chrome.storage.local.set({
     coffeeBrewMode: activeMode.id,
     coffeeBrewLabel: activeMode.label,
     coffeeRunning: true,
@@ -347,16 +288,14 @@ timerToggle.addEventListener("click", () => {
     coffeeSessionId,
     completedCoffeeSessionId: null,
     breakRunning: false,
-    breakStartedAt: null,
-    snoozeUsedForSession: false,
-    snoozeSessionRunning: false
+    breakStartedAt: null
   });
 });
 
 timerRefill.addEventListener("click", () => {
   const activeMode = getBrewMode(settings.coffeeBrewMode);
   const duration = activeMode.durationMs;
-  chrome.storage.sync.set({
+  chrome.storage.local.set({
     coffeeRunning: false,
     coffeeStartedAt: null,
     coffeePausedRemainingMs: duration,
@@ -364,9 +303,7 @@ timerRefill.addEventListener("click", () => {
     coffeeBrewMode: activeMode.id,
     coffeeBrewLabel: activeMode.label,
     breakRunning: false,
-    breakStartedAt: null,
-    snoozeUsedForSession: false,
-    snoozeSessionRunning: false
+    breakStartedAt: null
   });
 });
 
@@ -378,7 +315,7 @@ function selectBrewMode(modeId) {
   const currentDuration = getValidDuration(settings.coffeeDurationMs);
   if (remaining < currentDuration && remaining > 0) return;
 
-  chrome.storage.sync.set({
+  chrome.storage.local.set({
     coffeeDurationMs: mode.durationMs,
     coffeePausedRemainingMs: mode.durationMs,
     coffeeBrewMode: mode.id,
@@ -388,116 +325,6 @@ function selectBrewMode(modeId) {
     coffeeSessionId: null,
     completedCoffeeSessionId: null,
     breakRunning: false,
-    breakStartedAt: null,
-    snoozeUsedForSession: false,
-    snoozeSessionRunning: false
+    breakStartedAt: null
   });
-}
-
-function completeFocusSession() {
-  if (!settings.coffeeSessionId || settings.completedCoffeeSessionId === settings.coffeeSessionId) {
-    return;
-  }
-
-  const duration = getValidDuration(settings.coffeeDurationMs);
-  const focusStats = settings.snoozeSessionRunning
-    ? settings.focusStats
-    : {
-        sessionsCompleted: settings.focusStats.sessionsCompleted + 1,
-        minutesProtected: settings.focusStats.minutesProtected + Math.round(duration / 60000),
-        cupsFinished: settings.focusStats.cupsFinished + 1
-      };
-
-  settings = {
-    ...settings,
-    coffeeRunning: false,
-    coffeeStartedAt: null,
-    coffeePausedRemainingMs: 0,
-    completedCoffeeSessionId: settings.coffeeSessionId,
-    breakRunning: true,
-    breakStartedAt: Date.now(),
-    snoozeSessionRunning: false,
-    focusStats
-  };
-
-  chrome.storage.sync.set({
-    coffeeRunning: false,
-    coffeeStartedAt: null,
-    coffeePausedRemainingMs: 0,
-    completedCoffeeSessionId: settings.coffeeSessionId,
-    breakRunning: true,
-    breakStartedAt: settings.breakStartedAt,
-    snoozeSessionRunning: false,
-    focusStats
-  });
-
-  syncTicker();
-}
-
-function normalizeSettings(source) {
-  const brewMode = getBrewMode(source.coffeeBrewMode);
-  const coffeeDurationMs = getValidDuration(source.coffeeDurationMs);
-  return {
-    ...DEFAULT_SETTINGS,
-    ...source,
-    breakDurationMs: getValidBreakDuration(source.breakDurationMs),
-    focusStats: normalizeFocusStats(source.focusStats),
-    coffeeBrewMode: brewMode.id,
-    coffeeBrewLabel: typeof source.coffeeBrewLabel === "string" && source.coffeeBrewLabel.trim()
-      ? source.coffeeBrewLabel
-      : brewMode.label,
-    coffeeDurationMs,
-    coffeePausedRemainingMs: getValidRemaining(
-      source.coffeePausedRemainingMs,
-      coffeeDurationMs
-    )
-  };
-}
-
-function getBrewMode(modeId) {
-  return BREW_MODES[modeId] || DEFAULT_BREW_MODE;
-}
-
-function normalizeFocusStats(value) {
-  const source = value && typeof value === "object" ? value : {};
-  return {
-    sessionsCompleted: getNonNegativeInteger(source.sessionsCompleted),
-    minutesProtected: getNonNegativeInteger(source.minutesProtected),
-    cupsFinished: getNonNegativeInteger(source.cupsFinished)
-  };
-}
-
-function getNonNegativeInteger(value) {
-  return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
-}
-
-function getCoffeeRemaining(source) {
-  const duration = getValidDuration(source.coffeeDurationMs);
-  const pausedRemaining = getValidRemaining(source.coffeePausedRemainingMs, duration);
-
-  if (!source.coffeeRunning || !Number.isFinite(source.coffeeStartedAt)) {
-    return pausedRemaining;
-  }
-
-  return Math.max(0, duration - (Date.now() - source.coffeeStartedAt));
-}
-
-function getValidDuration(value) {
-  return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.coffeeDurationMs;
-}
-
-function getValidBreakDuration(value) {
-  return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.breakDurationMs;
-}
-
-function getValidRemaining(value, durationValue) {
-  const duration = getValidDuration(durationValue);
-  return Number.isFinite(value) ? Math.max(0, Math.min(value, duration)) : duration;
-}
-
-function formatTime(milliseconds) {
-  const totalSeconds = Math.ceil(Math.max(0, milliseconds) / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }

@@ -1,66 +1,24 @@
 (function coffeeCatContent() {
   const ROOT_ID = "coffeecat-root";
-  const BREAK_ROOT_ID = "coffeecat-break-root";
-  const FOCUS_DURATION_MS = 25 * 60 * 1000;
-  const BREAK_DURATION_MS = 5 * 60 * 1000;
+  const INTERMISSION_ROOT_ID = "coffeecat-intermission-root";
   const COFFEE_RENDER_INTERVAL_MS = 250;
-  const DEFAULT_SETTINGS = {
-    enabled: true,
-    size: "medium",
-    position: null,
-    coffeeDurationMs: FOCUS_DURATION_MS,
-    coffeePausedRemainingMs: FOCUS_DURATION_MS,
-    coffeeBrewMode: "espresso",
-    coffeeBrewLabel: "Espresso Shot",
-    coffeeRunning: false,
-    coffeeStartedAt: null,
-    coffeeSessionId: null,
-    completedCoffeeSessionId: null,
-    breakRunning: false,
-    breakStartedAt: null,
-    breakDurationMs: BREAK_DURATION_MS,
-    snoozeUsedForSession: false,
-    snoozeSessionRunning: false,
-    focusStats: {
-      sessionsCompleted: 0,
-      minutesProtected: 0,
-      cupsFinished: 0
-    }
-  };
 
-  // Modes differ by duration only. The coffee flood used to be per-mode, which
-  // meant three of the four modes ended in silence -- the timer expired and
-  // nothing on screen said so. Every finished session floods now, so the flag
-  // that used to gate it is gone rather than set to true four times.
-  const BREW_MODES = {
-    espresso: {
-      id: "espresso",
-      label: "Espresso Shot",
-      durationMs: 25 * 60 * 1000
-    },
-    "slow-pour": {
-      id: "slow-pour",
-      label: "Slow Pour",
-      durationMs: 45 * 60 * 1000
-    },
-    "cold-brew": {
-      id: "cold-brew",
-      label: "Cold Brew",
-      durationMs: 90 * 60 * 1000
-    },
-    decaf: {
-      id: "decaf",
-      label: "Decaf",
-      durationMs: 15 * 60 * 1000
-    }
-  };
-  const DEFAULT_BREW_MODE = BREW_MODES.espresso;
-
-  const SIZE_MAP = {
-    small: 64,
-    medium: 88,
-    large: 116
-  };
+  // What a session is, shared with the service worker and the popup so the
+  // three cannot disagree about a duration or about how remaining time is
+  // derived. Loaded as a content script ahead of this one; see the manifest and
+  // the header of src/settings.js.
+  const {
+    DEFAULT_SETTINGS,
+    SIZE_MAP,
+    formatTime,
+    getBreakRemaining,
+    getBrewMode,
+    getCoffeeRemaining,
+    getNonNegativeInteger,
+    getValidBreakDuration,
+    getValidDuration,
+    normalizeSettings
+  } = globalThis.COFFEECAT;
 
   // Covers the purr bubble's gap and tail, which sit outside its own box.
   const BUBBLE_EDGE_SLACK_PX = 8;
@@ -70,18 +28,40 @@
   // sits inside the glass and how far it travels -- the popup and the marketing
   // site read the same object, which is what stops the three surfaces drifting
   // into three different cups again.
-  const { FILL_WINDOW, DRAIN_RANGE } = globalThis.COFFEECAT_MUG;
+  const { FILL_WINDOW, DRAIN_RANGE, SVG } = globalThis.COFFEECAT_MUG;
+
+  // The intermission's vector cup, matching the popup's hero markup. Derived
+  // from the generated geometry rather than copied out of popup.html:
+  //   rx  = half the fill window's width (the interior ellipse)
+  //   ry  = rim centre minus the fill window's top, i.e. the interior ellipse's
+  //         vertical radius
+  // The one number that is not derivable is the optical inset: how far below the
+  // rim a full cup's surface sits. A surface exactly on the rim line reads as an
+  // overfilled cup.
+  const CUP_SURFACE_INSET = 1.2;
+  const CUP_SURFACE_Y = SVG.rim.cy + CUP_SURFACE_INSET;
+  const CUP_INTERIOR_RX = FILL_WINDOW.width / 2;
+  const CUP_INTERIOR_RY = SVG.rim.cy - FILL_WINDOW.y;
+
+  // Both shadow roots read shared.css, so their tokens cannot disagree with the
+  // popup's. Fetched once and cached: an intermission mounting five minutes
+  // after the float costs nothing.
+  const SHARED_SHEET = "src/shared.css";
+  const FLOAT_SHEET = "src/float.css";
+  const INTERMISSION_SHEET = "src/intermission.css";
+  const sheetCache = new Map();
 
   let settings = { ...DEFAULT_SETTINGS };
   let root = null;
-  let breakRoot = null;
-  let breakShadow = null;
+  let intermissionRoot = null;
+  let intermissionShadow = null;
   let shadow = null;
   let cat = null;
+  let intermissionFill = null;
+  let intermissionKeyHandler = null;
   let dragState = null;
   let moodTimer = null;
   let coffeeTimer = null;
-  let breakTimer = null;
   let audioContext = null;
 
   init();
@@ -94,16 +74,47 @@
 
     settings = await loadSettings();
     if (settings.enabled) {
-      mount();
+      await mount();
     }
 
     watchSettings();
   }
 
+  // The CSS used to be two template literals in this file, which meant a stray
+  // backtick in a comment could silently truncate a stylesheet and no editor
+  // or parser would say so. It is now two real files, adopted as constructed
+  // stylesheets rather than injected as <link>: a <link> inside a shadow root
+  // paints the tree unstyled for a frame, and one of these trees covers the
+  // whole viewport.
+  //
+  // The cost of the trade is that styling is now async, so both callers await
+  // this before attaching their root to the document. Only the very first
+  // float mount can actually wait, and it is already behind document_idle.
+  async function loadSheet(path) {
+    const cached = sheetCache.get(path);
+    if (cached) return cached;
+
+    const pending = (async () => {
+      const response = await fetch(getExtensionUrl(path));
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(await response.text());
+      return sheet;
+    })();
+
+    // Cache the promise, not the sheet: two roots mounting in the same tick
+    // must not each start a fetch.
+    sheetCache.set(path, pending);
+    return pending;
+  }
+
+  function loadSheets(paths) {
+    return Promise.all(paths.map(loadSheet));
+  }
+
   function loadSettings() {
     return new Promise((resolve) => {
       try {
-        chrome.storage.sync.get(DEFAULT_SETTINGS, (stored) => {
+        chrome.storage.local.get(DEFAULT_SETTINGS, (stored) => {
           try {
             if (getRuntimeLastError()) {
               resolve(DEFAULT_SETTINGS);
@@ -127,13 +138,32 @@
     });
   }
 
-  function mount() {
+  // Async only because of the stylesheet fetch. Errors are swallowed the same
+  // way every chrome.* call in this file swallows them: an extension reload
+  // mid-fetch is normal, and the right response is to leave the page clean
+  // rather than to raise on someone else's site.
+  async function mount() {
+    removeExistingRoot();
+
+    let sheets;
+    try {
+      sheets = await loadSheets([SHARED_SHEET, FLOAT_SHEET]);
+    } catch {
+      handleInvalidatedContext();
+      return;
+    }
+
+    // Two mounts can race across that await: watchSettings() calls mount()
+    // whenever a change arrives and finds no root, and `root` is not assigned
+    // until below. Whoever arrives second would otherwise leave the first
+    // cat orphaned in the document.
     removeExistingRoot();
 
     root = document.createElement("div");
     root.id = ROOT_ID;
     shadow = root.attachShadow({ mode: "closed" });
-    shadow.append(buildStyles(), buildCat());
+    shadow.adoptedStyleSheets = sheets;
+    shadow.append(buildCat());
     document.documentElement.appendChild(root);
 
     applySettings();
@@ -143,14 +173,14 @@
 
   function removeExistingRoot() {
     document.getElementById(ROOT_ID)?.remove();
-    document.getElementById(BREAK_ROOT_ID)?.remove();
+    document.getElementById(INTERMISSION_ROOT_ID)?.remove();
   }
 
   function watchSettings() {
     try {
       chrome.storage.onChanged.addListener((changes, areaName) => {
         try {
-          if (areaName !== "sync") return;
+          if (areaName !== "local") return;
 
           settings = normalizeSettings({
             ...settings,
@@ -169,7 +199,7 @@
 
           if (!root) mount();
           applySettings();
-          renderBreakOverlay();
+          renderIntermission();
         } catch {
           handleInvalidatedContext();
         }
@@ -181,7 +211,7 @@
 
   function hasExtensionContext() {
     try {
-      return Boolean(chrome?.runtime?.id && chrome?.storage?.sync);
+      return Boolean(chrome?.runtime?.id && chrome?.storage?.local);
     } catch {
       return false;
     }
@@ -198,7 +228,7 @@
 
   function saveSettings(nextSettings) {
     try {
-      chrome.storage.sync.set(nextSettings);
+      chrome.storage.local.set(nextSettings);
     } catch {
       handleInvalidatedContext();
     }
@@ -223,20 +253,18 @@
     moodTimer = null;
     window.clearInterval(coffeeTimer);
     coffeeTimer = null;
-    window.clearInterval(breakTimer);
-    breakTimer = null;
     dragState = null;
 
     if (root) {
       root.remove();
     }
-    if (breakRoot) {
-      breakRoot.remove();
+    if (intermissionRoot) {
+      intermissionRoot.remove();
     }
 
     root = null;
-    breakRoot = null;
-    breakShadow = null;
+    intermissionRoot = null;
+    intermissionShadow = null;
     shadow = null;
     cat = null;
   }
@@ -277,345 +305,25 @@
     return cat;
   }
 
-  function buildStyles() {
-    const style = document.createElement("style");
-    style.textContent = `
-      :host {
-        all: initial;
-      }
-
-      .coffee-cat {
-        /* Sampled from the buddy art itself (see tools/render_mug.py). The
-           previous set declared six tokens, used one, and hardcoded every mug
-           colour to hex that had drifted away from the illustration -- notably
-           a flat brown edge where the cat's is actually plum. */
-        --cat-edge: #470928;
-        --cat-edge-a: 71, 9, 40;
-        --cat-cream: #fce0c1;
-        --cat-fur: #e89c65;
-
-        /* Fallback only. applySettings() overwrites this on the host element
-           with size / SIZE_MAP.medium, and it inherits through the shadow
-           boundary -- the "all: initial" above does not touch custom properties.
-           Declaring it here means a failure to inherit degrades to medium
-           sizing rather than invalidating every calc() that reads it. */
-        --cat-unit: 1;
-
-        /* Borrowed verbatim from popup.css, which is already built on the HIG:
-           system-ui resolves to SF on macOS (SF Pro itself is not
-           bundleable), and the curve is Apple's standard ease. */
-        --bubble-font: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", sans-serif;
-        --bubble-ease: cubic-bezier(0.32, 0.72, 0, 1);
-        --bubble-surface: #fffdf9;
-        --bubble-label: #241812;
-        --bubble-shadow-a: 36, 24, 18;
-        appearance: none;
-        position: relative;
-        display: block;
-        width: 100%;
-        height: 100%;
-        padding: 0;
-        border: 0;
-        background: transparent;
-        cursor: grab;
-        image-rendering: pixelated;
-        transform-origin: center bottom;
-        animation: bob 4.8s steps(2, end) infinite;
-        transition: transform 160ms ease, filter 160ms ease;
-      }
-
-      /* Follows the OS appearance, not the host page's -- a content script has
-         no reliable read on an arbitrary site's theme. The sprite itself stays
-         cream-and-orange either way. */
-      @media (prefers-color-scheme: dark) {
-        .coffee-cat {
-          --bubble-surface: #2a2724;
-          --bubble-label: #f5efe7;
-          --bubble-shadow-a: 0, 0, 0;
-        }
-      }
-
-      .coffee-cat:active {
-        cursor: grabbing;
-      }
-
-      .coffee-cat:hover {
-        filter: drop-shadow(0 0 12px rgba(255, 186, 73, 0.55));
-      }
-
-      .cat-art {
-        display: block;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        pointer-events: none;
-        image-rendering: pixelated;
-        filter:
-          drop-shadow(0 8px 0 rgba(var(--cat-edge-a), 0.12))
-          drop-shadow(0 10px 18px rgba(var(--cat-edge-a), 0.22));
-        transform-origin: center bottom;
-      }
-
-      .coffee-cat.is-sipping .cat-art {
-        animation: sip 650ms steps(2, end);
-      }
-
-      .coffee-cat.is-purring .cat-art {
-        animation: purr 90ms steps(2, end) infinite;
-      }
-
-      .coffee-cat.is-napping .cat-art {
-        transform: translateY(2px) scaleY(0.98);
-        filter:
-          drop-shadow(0 8px 0 rgba(var(--cat-edge-a), 0.12))
-          drop-shadow(0 10px 18px rgba(var(--cat-edge-a), 0.18))
-          saturate(0.92);
-      }
-
-      /* The mug is four sprite layers rendered by tools/render_mug.py, all on
-         the same square canvas at the same origin, so they register by simply
-         being stacked. Geometry numbers come from the generator -- never
-         hand-tune them here or the clip window drifts off the glass. */
-      .coffee-meter {
-        position: absolute;
-        right: -6%;
-        bottom: 1%;
-        z-index: 3;
-        width: 44%;
-        height: 44%;
-        pointer-events: none;
-      }
-
-      .mug-layer,
-      .mug-liquid,
-      .mug-steam {
-        position: absolute;
-        display: block;
-        pointer-events: none;
-        /* Same nearest-neighbour downscale the cat gets. This is what puts the
-           two objects in the same medium: identical sampling, identical
-           aliasing character at every size. */
-        image-rendering: pixelated;
-      }
-
-      .mug-layer {
-        inset: 0;
-        width: 100%;
-        height: 100%;
-      }
-
-      .mug-window {
-        position: absolute;
-        left: ${FILL_WINDOW.x}%;
-        top: ${FILL_WINDOW.y}%;
-        width: ${FILL_WINDOW.width}%;
-        height: ${FILL_WINDOW.height}%;
-        overflow: hidden;
-        /* The cavity floor is a half-ellipse and the liquid column is a
-           straight rectangle, so the rounded bottom has to come from the clip,
-           which stays put while the column slides through it. */
-        border-radius: 0 0 50% 50% / 0 0 ${FILL_WINDOW.bottomRadius}% ${FILL_WINDOW.bottomRadius}%;
-      }
-
-      .mug-liquid {
-        /* Drawn on the full mug canvas, so it is sized back up to the meter box
-           and offset to cancel the window's own inset. That keeps it in
-           register with the vessel at every fill level. */
-        width: ${(10000 / FILL_WINDOW.width).toFixed(4)}%;
-        height: ${(10000 / FILL_WINDOW.height).toFixed(4)}%;
-        left: ${(-FILL_WINDOW.x * 100 / FILL_WINDOW.width).toFixed(4)}%;
-        top: ${(-FILL_WINDOW.y * 100 / FILL_WINDOW.height).toFixed(4)}%;
-        transform: translateY(0);
-        transition: transform 220ms linear, opacity 180ms ease;
-      }
-
-      .mug-steam {
-        width: 30%;
-        height: 44%;
-        bottom: 72%;
-        opacity: 0;
-        animation: steam 3.4s ease-out infinite;
-      }
-
-      .steam-a {
-        left: 24%;
-      }
-
-      .steam-b {
-        left: 40%;
-        animation-delay: 1400ms;
-        animation-duration: 3.9s;
-      }
-
-      /* "animation: none", not "animation-play-state: paused". A paused
-         animation still applies its current keyframe, and the keyframes drive
-         opacity -- so pausing would freeze the wisp visible over the rim
-         instead of hiding it. Removing the animation lets the base opacity
-         below actually win. */
-      .coffee-meter.is-paused .mug-steam,
-      .coffee-meter.is-empty .mug-steam {
-        animation: none;
-        opacity: 0;
-      }
-
-      .coffee-meter.is-empty .mug-liquid {
-        opacity: 0.35;
-      }
-
-      .coffee-meter.is-paused {
-        opacity: 0.82;
-      }
-
-      /* The sprite fills its box edge to edge -- head top at ~2%, mug at the
-         bottom right -- so there is no interior space for a bubble. It lives
-         entirely above the host box and points back down into the notch
-         between the ears. Centred, so a ~30px bubble inside an 88px box
-         overflows on no horizontal edge; only the top needs handling, which
-         sipAndPurr() does with .bubble-below.
-
-         Every metric is scaled by --cat-unit. Absolute pixels would only be
-         correct at one of the three SIZE_MAP sizes. */
-      .purr-bubble {
-        position: absolute;
-        left: 50%;
-        bottom: 100%;
-        z-index: 4;
-        margin-bottom: calc(4px * var(--cat-unit));
-        padding: calc(4px * var(--cat-unit)) calc(8px * var(--cat-unit));
-        border-radius: calc(8px * var(--cat-unit));
-        background: var(--bubble-surface);
-        color: var(--bubble-label);
-        /* Everything else scales freely, but type has a legibility floor:
-           unclamped, the small cat would set this at 8px. */
-        font: 600 max(9px, calc(11px * var(--cat-unit)))/1.2 var(--bubble-font);
-        letter-spacing: 0.01em;
-        white-space: nowrap;
-        -webkit-font-smoothing: antialiased;
-        /* One filter over the element *and* its ::before tail, so the two cast
-           a single continuous shadow: filter resolves against the composited
-           subtree, whereas a box-shadow on each part leaves a visible seam
-           along the joint where the two shadows overlap. The third, tight
-           drop-shadow stands in for a hairline border -- an actual border
-           would be drawn on the body only and stop dead at the tail. */
-        filter:
-          drop-shadow(0 calc(1px * var(--cat-unit)) calc(2px * var(--cat-unit)) rgba(var(--bubble-shadow-a), 0.16))
-          drop-shadow(0 calc(5px * var(--cat-unit)) calc(12px * var(--cat-unit)) rgba(var(--bubble-shadow-a), 0.16))
-          drop-shadow(0 0 0.5px rgba(var(--bubble-shadow-a), 0.16));
-        opacity: 0;
-        transform: translateX(-50%) translateY(calc(2px * var(--cat-unit))) scale(0.92);
-        transform-origin: bottom center;
-        /* Dismissal is quicker than arrival, per the platform convention;
-           .is-purring below overrides the duration on the way in. */
-        transition: opacity 160ms var(--bubble-ease), transform 160ms var(--bubble-ease);
-      }
-
-      /* Clipped triangle rather than the usual 45deg-rotated square: a square
-         can only ever produce a 90deg tip, which at this size hangs off the
-         bubble like a drip. Decoupling width from height gives the shallow,
-         wide tail the platform actually uses. Same fill, no shadow of its own
-         -- the parent's filter covers it. */
-      .purr-bubble::before {
-        content: "";
-        position: absolute;
-        left: 50%;
-        top: 100%;
-        width: calc(11px * var(--cat-unit));
-        height: calc(5px * var(--cat-unit));
-        background: var(--bubble-surface);
-        /* Overlaps the body's rounded bottom edge by a hair so the join is
-           solid rather than pinched. */
-        margin-top: -1px;
-        clip-path: polygon(0 0, 100% 0, 50% 100%);
-        transform: translateX(-50%);
-      }
-
-      .coffee-cat.is-purring .purr-bubble {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0) scale(1);
-        transition-duration: 260ms;
-      }
-
-      /* Flipped under the cat when it is parked too near the top of the
-         viewport. Must stay after the .is-purring rule above: both are three
-         classes deep, so source order settles it. */
-      .coffee-cat.bubble-below .purr-bubble {
-        top: 100%;
-        bottom: auto;
-        margin-top: calc(4px * var(--cat-unit));
-        margin-bottom: 0;
-        transform: translateX(-50%) translateY(calc(-2px * var(--cat-unit))) scale(0.92);
-        transform-origin: top center;
-      }
-
-      .coffee-cat.bubble-below .purr-bubble::before {
-        top: auto;
-        bottom: 100%;
-        margin-top: 0;
-        margin-bottom: -1px;
-        clip-path: polygon(50% 0, 100% 100%, 0 100%);
-      }
-
-      .coffee-cat.bubble-below.is-purring .purr-bubble {
-        transform: translateX(-50%) translateY(0) scale(1);
-      }
-
-      @keyframes bob {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-3px); }
-      }
-
-      @keyframes sip {
-        0%, 100% { transform: rotate(0deg); }
-        45%, 65% { transform: rotate(-4deg) translateY(-3px); }
-      }
-
-      @keyframes purr {
-        0%, 100% { transform: translateX(0); }
-        50% { transform: translateX(1px); }
-      }
-
-      @keyframes steam {
-        0% { transform: translateY(12%) scaleX(0.85); opacity: 0; }
-        25% { opacity: 0.75; }
-        100% { transform: translateY(-34%) scaleX(1.15); opacity: 0; }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .coffee-cat,
-        .cat-art,
-        .coffee-cat.is-purring .cat-art,
-        .mug-steam {
-          animation: none;
-        }
-
-        /* The steam sprite is only ever visible mid-animation, so killing the
-           animation has to also hide it -- otherwise it freezes on frame zero
-           as a static smudge over the rim. */
-        .mug-steam {
-          opacity: 0;
-        }
-
-        /* The drain is information, not decoration: it still moves, just
-           without the easing. */
-        .mug-liquid {
-          transition: none;
-        }
-
-        /* The bubble still has to appear -- it is the feedback for the click,
-           not decoration -- it just must not travel or scale. Each selector
-           here matches its counterpart above at equal specificity and wins on
-           source order, which is why the flipped variants are spelled out
-           rather than folded into one. */
-        .purr-bubble,
-        .coffee-cat.is-purring .purr-bubble,
-        .coffee-cat.bubble-below .purr-bubble,
-        .coffee-cat.bubble-below.is-purring .purr-bubble {
-          transform: translateX(-50%);
-          transition: opacity 100ms linear;
-        }
-      }
-    `;
-    return style;
+  // Places the sprite's clip window from the generated geometry. These used to
+  // be interpolated straight into the stylesheet string; with the CSS in a real
+  // file they travel as custom properties instead, which is the same route
+  // site/script.js already uses for the same numbers under the same names.
+  // Hand-writing them into float.css would be a second copy of generated
+  // geometry, which is the drift the generator exists to prevent.
+  function applyMugGeometry(style) {
+    style.setProperty("--win-x", `${FILL_WINDOW.x}%`);
+    style.setProperty("--win-y", `${FILL_WINDOW.y}%`);
+    style.setProperty("--win-w", `${FILL_WINDOW.width}%`);
+    style.setProperty("--win-h", `${FILL_WINDOW.height}%`);
+    style.setProperty("--win-r", `${FILL_WINDOW.bottomRadius}%`);
+    // The liquid sprite is drawn on the full mug canvas, so it is sized back up
+    // to the meter box and offset to cancel the window's own inset. That keeps
+    // it in register with the vessel at every fill level.
+    style.setProperty("--liq-w", `${10000 / FILL_WINDOW.width}%`);
+    style.setProperty("--liq-h", `${10000 / FILL_WINDOW.height}%`);
+    style.setProperty("--liq-x", `${(-FILL_WINDOW.x * 100) / FILL_WINDOW.width}%`);
+    style.setProperty("--liq-y", `${(-FILL_WINDOW.y * 100) / FILL_WINDOW.height}%`);
   }
 
   function applySettings() {
@@ -629,6 +337,7 @@
     // here too -- computing it anywhere else gives the bubble a second source
     // of truth that can drift out of step with the box it hangs off.
     root.style.setProperty("--cat-unit", (size / SIZE_MAP.medium).toFixed(4));
+    applyMugGeometry(root.style);
 
     if (settings.position && Number.isFinite(settings.position.x) && Number.isFinite(settings.position.y)) {
       moveTo(settings.position.x, settings.position.y);
@@ -640,7 +349,7 @@
     }
 
     updateCoffeeMeter();
-    renderBreakOverlay();
+    renderIntermission();
   }
 
   function startCoffeeTimer() {
@@ -649,20 +358,17 @@
     coffeeTimer = window.setInterval(updateCoffeeMeter, COFFEE_RENDER_INTERVAL_MS);
   }
 
-  // Ending the session and painting the cup are two different jobs. They used
-  // to share one early return on the meter's DOM: if the mug nodes were missing
-  // the tick bailed before completeFocusSession(), so a paint problem turned
-  // into "the timer never ended and the flood never came". Expiry is state, so
-  // it is settled first and unconditionally; only the drawing is guarded.
+  // Pure paint. This tick used to also *end* the session when it saw the clock
+  // hit zero, which meant every open tab raced to write the same completion
+  // patch and a browser with no http/https tab open never ended a session at
+  // all. src/background.js owns that now. What survives here is derivation:
+  // remaining time comes from the stored timestamps, so this stays correct
+  // between the worker's writes without being told anything.
   function updateCoffeeMeter() {
     const duration = getValidDuration(settings.coffeeDurationMs);
     const remaining = getCoffeeRemaining(settings);
 
-    if (settings.coffeeRunning && remaining <= 0) {
-      completeFocusSession();
-    }
-
-    renderBreakOverlay();
+    renderIntermission();
     paintCoffeeMeter(remaining, duration);
   }
 
@@ -683,366 +389,200 @@
     meter.classList.toggle("is-paused", !settings.coffeeRunning);
   }
 
-  function completeFocusSession() {
-    if (!settings.coffeeSessionId || settings.completedCoffeeSessionId === settings.coffeeSessionId) {
-      return;
-    }
-
-    const duration = getValidDuration(settings.coffeeDurationMs);
-    const nextStats = settings.snoozeSessionRunning
-      ? settings.focusStats
-      : {
-          sessionsCompleted: settings.focusStats.sessionsCompleted + 1,
-          minutesProtected: settings.focusStats.minutesProtected + Math.round(duration / 60000),
-          cupsFinished: settings.focusStats.cupsFinished + 1
-        };
-
-    settings = {
-      ...settings,
-      coffeeRunning: false,
-      coffeeStartedAt: null,
-      coffeePausedRemainingMs: 0,
-      completedCoffeeSessionId: settings.coffeeSessionId,
-      breakRunning: true,
-      breakStartedAt: Date.now(),
-      snoozeSessionRunning: false,
-      focusStats: nextStats
-    };
-
-    saveSettings({
-      coffeeRunning: false,
-      coffeeStartedAt: null,
-      coffeePausedRemainingMs: 0,
-      completedCoffeeSessionId: settings.coffeeSessionId,
-      breakRunning: true,
-      breakStartedAt: settings.breakStartedAt,
-      snoozeSessionRunning: false,
-      focusStats: nextStats
-    });
-  }
-
-  function renderBreakOverlay() {
-    const shouldShow = settings.enabled && settings.breakRunning;
+  // Called from the coffee tick, so this runs every COFFEE_RENDER_INTERVAL_MS
+  // for as long as the float is mounted. That is what drives the countdown and
+  // the refilling cup; the intermission used to also arm a 1000ms interval of
+  // its own, which this tick cleared and re-armed before it could ever fire.
+  //
+  // The expiry term is derived, not written. An expired intermission has to stop
+  // being drawn here or the next tick would just mount it again -- but the
+  // *stored* breakRunning flag is the service worker's to clear, the same way
+  // ending a focus session is. Every open tab writing "the break is over" was
+  // the same thundering herd the completion write used to be.
+  function renderIntermission() {
+    const shouldShow = settings.enabled
+      && settings.breakRunning
+      && getBreakRemaining(settings) > 0;
     if (!shouldShow) {
-      removeBreakOverlay();
+      removeIntermission();
       return;
     }
 
-    if (!breakRoot) {
-      breakRoot = document.createElement("div");
-      breakRoot.id = BREAK_ROOT_ID;
-      breakShadow = breakRoot.attachShadow({ mode: "closed" });
-      breakShadow.append(buildBreakStyles(), buildBreakOverlay());
-      document.documentElement.appendChild(breakRoot);
+    if (!intermissionRoot) {
+      mountIntermission();
+      return;
     }
 
-    updateBreakOverlay();
-    window.clearInterval(breakTimer);
-    breakTimer = window.setInterval(updateBreakOverlay, 1000);
+    updateIntermission();
   }
 
-  function removeBreakOverlay() {
-    window.clearInterval(breakTimer);
-    breakTimer = null;
-    if (breakRoot) {
-      breakRoot.remove();
+  // Split out of renderIntermission() because adopting the stylesheets is async,
+  // and renderIntermission() is called from a synchronous render tick.
+  async function mountIntermission() {
+    let sheets;
+    try {
+      sheets = await loadSheets([SHARED_SHEET, INTERMISSION_SHEET]);
+    } catch {
+      handleInvalidatedContext();
+      return;
     }
-    breakRoot = null;
-    breakShadow = null;
+
+    // The intermission can end while that fetch is in flight, and two storage changes
+    // can both arrive before `intermissionRoot` is assigned.
+    if (!settings.enabled || !settings.breakRunning || intermissionRoot) return;
+
+    intermissionRoot = document.createElement("div");
+    intermissionRoot.id = INTERMISSION_ROOT_ID;
+    intermissionShadow = intermissionRoot.attachShadow({ mode: "closed" });
+    intermissionShadow.adoptedStyleSheets = sheets;
+    intermissionShadow.append(buildIntermission());
+    document.documentElement.appendChild(intermissionRoot);
+
+    // Escape ends the intermission. It no longer blocks the page, so this is
+    // the keyboard equivalent of choosing Snooze and walking away from it.
+    // Capture phase because plenty of pages stop Escape on the way up.
+    intermissionKeyHandler = (event) => {
+      if (event.key === "Escape") endBreak();
+    };
+    window.addEventListener("keydown", intermissionKeyHandler, true);
+
+    updateIntermission();
   }
 
-  function buildBreakOverlay() {
+  function removeIntermission() {
+    if (intermissionKeyHandler) {
+      window.removeEventListener("keydown", intermissionKeyHandler, true);
+      intermissionKeyHandler = null;
+    }
+    if (intermissionRoot) {
+      intermissionRoot.remove();
+    }
+    intermissionRoot = null;
+    intermissionShadow = null;
+    intermissionFill = null;
+  }
+
+  // The popup's hero, rebuilt: cup, time, caption, and a two-choice action
+  // group, in that order at those sizes on the same left spine (see the panel
+  // notes in src/intermission.css). The kicker, the <h1> and the message
+  // paragraph that used to sit here are gone -- four competing text blocks
+  // left the panel with no focal point, and a top-level heading injected into
+  // an arbitrary page also pollutes that page's heading outline.
+  function buildIntermission() {
     const overlay = document.createElement("section");
-    overlay.className = "break-overlay";
-    overlay.setAttribute("aria-label", "CoffeeCat break reminder");
-    const buddyImage = getExtensionUrl("assets/coffeecat-buddy.png");
+    overlay.className = "intermission";
+    overlay.setAttribute("aria-label", "CoffeeCat intermission");
     overlay.innerHTML = `
-      <div class="coffee-flood" aria-hidden="true">
+      <div class="coffee-rise" aria-hidden="true">
         <span class="coffee-wave wave-a"></span>
         <span class="coffee-wave wave-b"></span>
       </div>
-      <div class="break-panel">
-        <img class="break-cat" src="${buddyImage}" alt="">
-        <div class="break-copy">
-          <p class="break-kicker">CoffeeCat coffee flood</p>
-          <h1>Coffee's gone. Tiny break.</h1>
-          <p class="break-message">The coffee is taking over this page while you refill yourself first.</p>
-          <strong class="break-countdown" id="break-countdown">5:00</strong>
+      <div class="intermission-panel">
+        ${buildCupMarkup()}
+        <strong class="time-display" id="intermission-countdown">${formatTime(getBreakRemaining(settings))}</strong>
+        <!-- role="status" so it announces itself once on mount, the way
+             the popup's #timer-status does. It carries the announcement rather
+             than the countdown because the countdown's text changes every tick
+             and a live region on that would talk over everything. -->
+        <p class="intermission-caption" role="status">intermission</p>
+        <div class="intermission-actions">
+          <button class="button-primary" id="intermission-refill" type="button">Refill coffee</button>
+          <p class="intermission-choice-note">Not ready for another session?</p>
+          <button class="button-secondary" id="intermission-snooze" type="button">Snooze</button>
         </div>
-        <div class="break-actions">
-          <button id="break-start" type="button">Start break</button>
-          <button id="break-refill" type="button">Refill coffee</button>
-          <button id="break-snooze" type="button">Snooze once</button>
-        </div>
-        <div class="flood-stats" id="flood-stats">
-          <span>CoffeeCat protected</span>
-          <strong id="share-minutes">0 focus minutes</strong>
-          <small id="share-cups">0 cups finished</small>
-        </div>
+        <p class="intermission-stats" id="intermission-stats" hidden></p>
       </div>
     `;
 
-    overlay.querySelector("#break-start")?.addEventListener("click", startBreakNow);
-    overlay.querySelector("#break-refill")?.addEventListener("click", refillCoffeeFromBreak);
-    overlay.querySelector("#break-snooze")?.addEventListener("click", snoozeBreak);
+    intermissionFill = overlay.querySelector("#intermission-progress-fill");
+    overlay.querySelector("#intermission-refill")?.addEventListener("click", refillCoffee);
+    overlay.querySelector("#intermission-snooze")?.addEventListener("click", endBreak);
     return overlay;
   }
 
-  function buildBreakStyles() {
-    const style = document.createElement("style");
-    style.textContent = `
-      :host {
-        all: initial;
-      }
+  // The same cup the popup draws, from the same generated geometry. Built here
+  // rather than pasted in as path strings so this does not become a fourth
+  // hand-maintained copy of the vessel: tools/render_mug.py emits the paths into
+  // src/mug-geometry.js and every surface reads them from there.
+  //
+  // The ids are scoped to this shadow root, so they cannot collide with the
+  // popup's or with anything on the host page.
+  function buildCupMarkup() {
+    return `
+      <svg class="cup" viewBox="${SVG.viewBox}" aria-hidden="true">
+        <defs>
+          <clipPath id="intermission-cup-interior">
+            <path d="${SVG.interior}"></path>
+          </clipPath>
+          <linearGradient id="intermission-coffee-liquid" x1="0" y1="0" x2="0" y2="1">
+            <stop class="liquid-top" offset="0"></stop>
+            <stop class="liquid-bottom" offset="1"></stop>
+          </linearGradient>
+        </defs>
 
-      .break-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 2147483647;
-        display: grid;
-        place-items: center;
-        padding: 28px;
-        overflow: hidden;
-        background: rgba(36, 24, 18, 0.18);
-        color: #241812;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        box-sizing: border-box;
-      }
+        <path class="cup-handle" d="${SVG.handle}"></path>
+        <path class="cup-wall" d="${SVG.body}"></path>
 
-      .coffee-flood {
-        position: absolute;
-        inset: 0;
-        z-index: 0;
-        overflow: hidden;
-        background:
-          linear-gradient(rgba(123, 62, 25, 0.22), rgba(55, 24, 12, 0.72)),
-          rgba(79, 36, 16, 0.72);
-        transform: scaleY(0);
-        transform-origin: center bottom;
-        animation: coffeeFloodRise 1400ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-        backdrop-filter: sepia(0.38) saturate(0.95);
-      }
+        <g clip-path="url(#intermission-cup-interior)">
+          <g class="cup-liquid" id="intermission-progress-fill">
+            <rect x="0" y="${CUP_SURFACE_Y}" width="100" height="90" fill="url(#intermission-coffee-liquid)"></rect>
+            <ellipse class="cup-crema" cx="${SVG.rim.cx}" cy="${CUP_SURFACE_Y}" rx="${CUP_INTERIOR_RX}" ry="${CUP_INTERIOR_RY}"></ellipse>
+          </g>
+        </g>
 
-      .coffee-flood::before {
-        content: "";
-        position: absolute;
-        left: -8%;
-        right: -8%;
-        top: -18px;
-        height: 42px;
-        border-radius: 50%;
-        background:
-          radial-gradient(ellipse at 20% 50%, rgba(255, 190, 116, 0.38), transparent 34%),
-          radial-gradient(ellipse at 70% 48%, rgba(255, 226, 184, 0.24), transparent 30%),
-          rgba(94, 44, 18, 0.92);
-        box-shadow: 0 8px 24px rgba(43, 19, 10, 0.28);
-      }
-
-      .coffee-wave {
-        position: absolute;
-        left: -20%;
-        right: -20%;
-        top: -20px;
-        height: 38px;
-        border-radius: 50%;
-        background: rgba(255, 190, 116, 0.2);
-        animation: coffeeWave 2200ms ease-in-out infinite alternate;
-      }
-
-      .wave-b {
-        top: -8px;
-        opacity: 0.55;
-        animation-delay: 500ms;
-        animation-duration: 2800ms;
-      }
-
-      .break-panel {
-        width: min(520px, calc(100vw - 56px));
-        display: grid;
-        gap: 18px;
-        justify-items: center;
-        padding: 26px;
-        border: 4px solid #4a2b1d;
-        border-radius: 14px;
-        background: rgba(255, 253, 248, 0.94);
-        box-shadow: 0 14px 0 rgba(74, 43, 29, 0.18), 0 24px 54px rgba(36, 24, 18, 0.32);
-        text-align: center;
-        z-index: 2;
-        opacity: 0;
-        transform: translateY(18px);
-        animation: breakPanelAppear 360ms ease forwards;
-        animation-delay: 1050ms;
-      }
-
-      .break-cat {
-        width: 156px;
-        height: 156px;
-        object-fit: contain;
-        image-rendering: pixelated;
-        filter: drop-shadow(0 12px 0 rgba(74, 43, 29, 0.12));
-      }
-
-      .break-copy {
-        display: grid;
-        gap: 8px;
-      }
-
-      .break-kicker,
-      .break-message,
-      .flood-stats span,
-      .flood-stats small {
-        margin: 0;
-        color: #6f594d;
-        font-size: 14px;
-        line-height: 1.4;
-      }
-
-      h1 {
-        margin: 0;
-        color: #4a2b1d;
-        font-size: 30px;
-        line-height: 1.05;
-        letter-spacing: 0;
-      }
-
-      .break-countdown {
-        color: #4a2b1d;
-        font-size: 46px;
-        line-height: 1;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .break-actions {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
-        width: 100%;
-      }
-
-      button {
-        min-height: 42px;
-        border: 3px solid #4a2b1d;
-        border-radius: 8px;
-        background: #4a2b1d;
-        color: #fff8ef;
-        cursor: pointer;
-        font: 800 13px/1.1 Inter, ui-sans-serif, system-ui, sans-serif;
-      }
-
-      button:nth-child(2),
-      button:nth-child(3) {
-        background: #fff8ef;
-        color: #4a2b1d;
-      }
-
-      button:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-      }
-
-      .flood-stats {
-        width: min(300px, 100%);
-        display: grid;
-        gap: 5px;
-        padding: 14px;
-        border: 3px solid #4a2b1d;
-        border-radius: 10px;
-        background: linear-gradient(135deg, #fff8ef, #ffe2b8);
-        box-sizing: border-box;
-      }
-
-      .flood-stats strong {
-        color: #4a2b1d;
-        font-size: 20px;
-      }
-
-      @keyframes coffeeFloodRise {
-        0% { transform: scaleY(0); }
-        100% { transform: scaleY(1); }
-      }
-
-      @keyframes coffeeWave {
-        0% { transform: translateX(-24px) scaleX(1.04); }
-        100% { transform: translateX(24px) scaleX(0.96); }
-      }
-
-      @keyframes breakPanelAppear {
-        100% {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-
-      /* Both the flood and the panel rest in an invisible state -- scaleY(0)
-         and opacity 0 -- and are only made visible by their animations. So
-         "animation: none" alone hides the break entirely instead of calming
-         it. Every rule here has to restore the end state by hand. site's
-         styles.css solves the same trap the same way. */
-      @media (prefers-reduced-motion: reduce) {
-        .coffee-flood {
-          animation: none;
-          transform: scaleY(1);
-        }
-
-        .coffee-wave {
-          animation: none;
-        }
-
-        .break-panel {
-          animation: none;
-          opacity: 1;
-          transform: none;
-        }
-      }
-
-      @media (max-width: 480px) {
-        .break-panel {
-          padding: 20px;
-        }
-
-        .break-actions {
-          grid-template-columns: 1fr;
-        }
-
-        h1 {
-          font-size: 25px;
-        }
-      }
+        <path class="cup-body" d="${SVG.body}"></path>
+      </svg>
     `;
-    return style;
   }
 
-  function updateBreakOverlay() {
-    if (!breakShadow || !settings.breakRunning) return;
+  function updateIntermission() {
+    if (!intermissionShadow || !settings.breakRunning) return;
 
     const remaining = getBreakRemaining(settings);
-    const countdown = breakShadow.querySelector("#break-countdown");
-    const snoozeButton = breakShadow.querySelector("#break-snooze");
-    const shareMinutes = breakShadow.querySelector("#share-minutes");
-    const shareCups = breakShadow.querySelector("#share-cups");
 
+    // Expiry only takes the panel off screen; renderIntermission() is what keeps
+    // it off, and src/background.js is what clears the stored flag.
     if (remaining <= 0) {
-      endBreak();
+      removeIntermission();
       return;
     }
 
+    const countdown = intermissionShadow.querySelector("#intermission-countdown");
     if (countdown) countdown.textContent = formatTime(remaining);
-    if (snoozeButton) snoozeButton.disabled = Boolean(settings.snoozeUsedForSession);
-    if (shareMinutes) shareMinutes.textContent = `${settings.focusStats.minutesProtected} focus minutes`;
-    if (shareCups) shareCups.textContent = `${settings.focusStats.cupsFinished} cups finished`;
+
+    paintIntermissionCup(remaining);
+
+    const stats = intermissionShadow.querySelector("#intermission-stats");
+    if (stats) {
+      const summary = formatFocusSummary(settings.focusStats);
+      stats.textContent = summary;
+      stats.hidden = !summary;
+    }
   }
 
-  function startBreakNow() {
-    const startedAt = Number.isFinite(settings.breakStartedAt) ? settings.breakStartedAt : Date.now();
-    settings = {
-      ...settings,
-      breakStartedAt: startedAt
-    };
-    saveSettings({ breakStartedAt: startedAt });
-    updateBreakOverlay();
+  // The inverse of the popup's drain: this cup refills as the intermission runs,
+  // the same object carries both halves of the cycle. Translate, never scale --
+  // the crema ellipse has to ride along at a constant thickness rather than
+  // being squashed by the transform that moves it.
+  function paintIntermissionCup(remaining) {
+    if (!intermissionFill) return;
+
+    const duration = getValidBreakDuration(settings.breakDurationMs);
+    const fill = Math.max(0, Math.min(1, 1 - remaining / duration));
+    intermissionFill.style.transform = `translateY(${((1 - fill) * SVG.interiorHeight).toFixed(4)}px)`;
   }
 
-  function refillCoffeeFromBreak() {
+  // One quiet line, not a panel. The popup carries no stats block at all, and
+  // three stacked figures were competing with the countdown for the same job.
+  function formatFocusSummary(stats) {
+    const cups = getNonNegativeInteger(stats?.cupsFinished);
+    const minutes = getNonNegativeInteger(stats?.minutesProtected);
+    if (!cups && !minutes) return "";
+
+    return `${cups} ${cups === 1 ? "cup" : "cups"}, ${minutes} ${minutes === 1 ? "minute" : "minutes"} protected`;
+  }
+
+  function refillCoffee() {
     const activeMode = getBrewMode(settings.coffeeBrewMode);
     const duration = activeMode.durationMs;
     settings = {
@@ -1054,9 +594,7 @@
       coffeeBrewMode: activeMode.id,
       coffeeBrewLabel: activeMode.label,
       breakRunning: false,
-      breakStartedAt: null,
-      snoozeUsedForSession: false,
-      snoozeSessionRunning: false
+      breakStartedAt: null
     };
     saveSettings({
       coffeeRunning: false,
@@ -1066,59 +604,22 @@
       coffeeBrewMode: activeMode.id,
       coffeeBrewLabel: activeMode.label,
       breakRunning: false,
-      breakStartedAt: null,
-      snoozeUsedForSession: false,
-      snoozeSessionRunning: false
+      breakStartedAt: null
     });
-    removeBreakOverlay();
-  }
-
-  function snoozeBreak() {
-    if (settings.snoozeUsedForSession) return;
-    const duration = getValidDuration(settings.coffeeDurationMs);
-    const snoozeRemaining = Math.min(5 * 60 * 1000, duration);
-    const coffeeSessionId = `${Date.now()}-snooze`;
-    settings = {
-      ...settings,
-      coffeeRunning: true,
-      coffeeStartedAt: Date.now() - (duration - snoozeRemaining),
-      coffeePausedRemainingMs: snoozeRemaining,
-      coffeeSessionId,
-      completedCoffeeSessionId: null,
-      breakRunning: false,
-      breakStartedAt: null,
-      snoozeUsedForSession: true,
-      snoozeSessionRunning: true
-    };
-    saveSettings({
-      coffeeRunning: true,
-      coffeeStartedAt: settings.coffeeStartedAt,
-      coffeePausedRemainingMs: snoozeRemaining,
-      coffeeSessionId,
-      completedCoffeeSessionId: null,
-      breakRunning: false,
-      breakStartedAt: null,
-      snoozeUsedForSession: true,
-      snoozeSessionRunning: true
-    });
-    removeBreakOverlay();
+    removeIntermission();
   }
 
   function endBreak() {
     settings = {
       ...settings,
       breakRunning: false,
-      breakStartedAt: null,
-      snoozeUsedForSession: false,
-      snoozeSessionRunning: false
+      breakStartedAt: null
     };
     saveSettings({
       breakRunning: false,
-      breakStartedAt: null,
-      snoozeUsedForSession: false,
-      snoozeSessionRunning: false
+      breakStartedAt: null
     });
-    removeBreakOverlay();
+    removeIntermission();
   }
 
   function startDrag(event) {
@@ -1261,78 +762,4 @@
     }, 12000 + Math.random() * 10000);
   }
 
-  function getCoffeeRemaining(source) {
-    const duration = getValidDuration(source.coffeeDurationMs);
-    const pausedRemaining = getValidRemaining(source.coffeePausedRemainingMs, duration);
-
-    if (!source.coffeeRunning || !Number.isFinite(source.coffeeStartedAt)) {
-      return pausedRemaining;
-    }
-
-    return Math.max(0, duration - (Date.now() - source.coffeeStartedAt));
-  }
-
-  function getBreakRemaining(source) {
-    const duration = getValidBreakDuration(source.breakDurationMs);
-    if (!source.breakRunning || !Number.isFinite(source.breakStartedAt)) {
-      return duration;
-    }
-
-    return Math.max(0, duration - (Date.now() - source.breakStartedAt));
-  }
-
-  function normalizeSettings(source) {
-    const brewMode = getBrewMode(source.coffeeBrewMode);
-    const coffeeDurationMs = getValidDuration(source.coffeeDurationMs);
-    return {
-      ...DEFAULT_SETTINGS,
-      ...source,
-      size: SIZE_MAP[source.size] ? source.size : DEFAULT_SETTINGS.size,
-      breakDurationMs: getValidBreakDuration(source.breakDurationMs),
-      focusStats: normalizeFocusStats(source.focusStats),
-      coffeeBrewMode: brewMode.id,
-      coffeeBrewLabel: typeof source.coffeeBrewLabel === "string" && source.coffeeBrewLabel.trim()
-        ? source.coffeeBrewLabel
-        : brewMode.label,
-      coffeeDurationMs,
-      coffeePausedRemainingMs: getValidRemaining(source.coffeePausedRemainingMs, coffeeDurationMs)
-    };
-  }
-
-  function getBrewMode(modeId) {
-    return BREW_MODES[modeId] || DEFAULT_BREW_MODE;
-  }
-
-  function normalizeFocusStats(value) {
-    const source = value && typeof value === "object" ? value : {};
-    return {
-      sessionsCompleted: getNonNegativeInteger(source.sessionsCompleted),
-      minutesProtected: getNonNegativeInteger(source.minutesProtected),
-      cupsFinished: getNonNegativeInteger(source.cupsFinished)
-    };
-  }
-
-  function getNonNegativeInteger(value) {
-    return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
-  }
-
-  function getValidDuration(value) {
-    return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.coffeeDurationMs;
-  }
-
-  function getValidBreakDuration(value) {
-    return Number.isFinite(value) && value > 0 ? value : DEFAULT_SETTINGS.breakDurationMs;
-  }
-
-  function getValidRemaining(value, durationValue) {
-    const duration = getValidDuration(durationValue);
-    return Number.isFinite(value) ? Math.max(0, Math.min(value, duration)) : duration;
-  }
-
-  function formatTime(milliseconds) {
-    const totalSeconds = Math.ceil(Math.max(0, milliseconds) / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${String(seconds).padStart(2, "0")}`;
-  }
 })();

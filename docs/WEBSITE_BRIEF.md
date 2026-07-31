@@ -1,5 +1,11 @@
 # CoffeeCat Website Brief
 
+> **Superseded.** This is the original spec, kept for history. The shipped site
+> diverges from it deliberately: it uses a violet UI palette rather than the
+> terracotta and blush described below, and the end-of-session moment is now
+> called the **intermission**, not the "coffee flood". For current design truth
+> read the header comments in `site/styles.css` and `src/shared.css`.
+
 This document captures the product, messaging, and implementation details needed to build a public website for CoffeeCat.
 
 ## Product Summary
@@ -61,7 +67,7 @@ The website should feel warm, playful, and focused on the actual extension exper
 
 Recommended visual assets:
 
-- Use `assets/coffeecat-buddy.png` as a primary character image.
+- Use `assets/coffeecat-buddy-large.png` as the primary character image at hero sizes, and `assets/coffeecat-buddy.png` for marks and small inline uses. Both come from `tools/render_buddy.py`; the small one is cut to what the extension's float paints and will be soft above ~200px.
 - Show a real browser-page mockup with CoffeeCat sitting near the bottom-right.
 - Include a close-up or animated demo of the Focus Coffee cup draining and the page filling with coffee.
 - Use the extension icons from `assets/icons/` for favicon/app icon treatments.

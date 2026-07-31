@@ -318,7 +318,6 @@ code {
 .nav-mark img {
   width: 20px;
   height: 20px;
-  image-rendering: pixelated;
 }
 
 .nav-links {
@@ -335,6 +334,25 @@ code {
 
 .nav-links a:hover {
   color: var(--ink);
+}
+
+.nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--s3);
+  border: 1px solid var(--rule-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: 500 var(--t-small) / 1 var(--font);
+}
+
+.nav-toggle[aria-expanded="true"] {
+  background: var(--ink);
+  color: var(--paper);
 }
 
 /* ---------- Buttons ---------- */
@@ -412,6 +430,7 @@ button:focus-visible {
 }
 
 .act-body {
+  min-width: 0;
   display: grid;
   gap: var(--s8);
 }
@@ -453,6 +472,7 @@ button:focus-visible {
 .hero-copy {
   display: grid;
   gap: var(--s5);
+  min-width: 0;
   padding-bottom: var(--s4);
 }
 
@@ -470,6 +490,27 @@ button:focus-visible {
   flex-wrap: wrap;
   gap: var(--s3);
   margin-top: var(--s2);
+}
+
+.cat-note {
+  display: grid;
+  gap: var(--s1);
+  max-width: 30ch;
+  margin: 0;
+  padding-top: var(--s4);
+  border-top: 1px solid var(--rule);
+  color: var(--ink-3);
+  font-size: var(--t-small);
+  line-height: 1.45;
+}
+
+.cat-note span {
+  color: var(--accent-text);
+  font-family: var(--font-mono);
+  font-size: var(--t-label);
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 /* ---------- Hero browser demo ---------- */
@@ -549,15 +590,24 @@ button:focus-visible {
 /* `>` is load-bearing. As `.demo-cat img` this also matched the three mug
    sprite layers, so mug-back, mug-fill and mug-front each cast their own hard
    18px copy of themselves and the three stacked into a dark rectangle sitting
-   under the cup. The cat is the only child <img>; the cup is a <span>.
+   under the cup. The cat is the only child image element; the cup is a <span>.
 
    The shadow itself is now soft rather than the old `0 18px 0` hard offset --
    that was the sticker idiom this redesign removed everywhere else, and on the
    dark demo panel it read as a smudge rather than as depth. */
+/* This one reads coffeecat-buddy-large.png, not the sprite the extension ships.
+   The hero paints the cat at 252px, which wants 504 device px on a 2x display;
+   the extension's sprite is cut to the ~181px the float can actually paint. Two
+   files rather than one because sharing would either blur the hero or make every
+   page in the browser carry the hero's resolution. See tools/render_buddy.py.
+
+   No `image-rendering: pixelated` anywhere on this page any more, on the cat or
+   on the mug layers. The art is continuous-tone, so nearest-neighbour was not
+   preserving a pixel grid -- there is none to preserve -- it was just dropping
+   whichever rows and columns missed the sampling grid. */
 .demo-cat > img {
   width: 100%;
   display: block;
-  image-rendering: pixelated;
   filter: drop-shadow(0 14px 18px rgba(14, 6, 26, 0.5));
 }
 
@@ -580,7 +630,6 @@ button:focus-visible {
   width: 100%;
   height: 100%;
   display: block;
-  image-rendering: pixelated;
 }
 
 .demo-cup .mug-window {
@@ -596,7 +645,6 @@ button:focus-visible {
 .demo-cup .mug-liquid {
   position: absolute;
   display: block;
-  image-rendering: pixelated;
   width: var(--liq-w);
   height: var(--liq-h);
   left: var(--liq-x);
@@ -708,12 +756,12 @@ button:focus-visible {
   max-width: 52ch;
 }
 
-.flood-preview {
+.intermission-preview {
   display: grid;
   gap: var(--s4);
 }
 
-.flood-page {
+.intermission-page {
   position: relative;
   min-height: 210px;
   overflow: hidden;
@@ -721,7 +769,7 @@ button:focus-visible {
   background: linear-gradient(var(--demo-top), var(--demo-bot));
 }
 
-.flood-page span {
+.intermission-page span {
   position: relative;
   z-index: 1;
   display: block;
@@ -732,21 +780,20 @@ button:focus-visible {
   background: var(--on-demo);
 }
 
-.flood-page img {
+.intermission-page img {
   position: absolute;
   left: 50%;
   bottom: var(--s5);
   z-index: 3;
   width: 92px;
   transform: translateX(-50%);
-  image-rendering: pixelated;
 }
 
 /* The last warm colours on the page, and deliberately so: this is coffee, not
    chrome. The violet field is what lets them stay warm without the page
    reading as two competing temperatures -- against the old terracotta UI these
-   browns were just more of the same. Do not violet-shift the flood. */
-.flood-coffee {
+   browns were just more of the same. Do not violet-shift the coffee. */
+.intermission-coffee {
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -755,10 +802,10 @@ button:focus-visible {
     rgba(79, 36, 16, 0.7);
   transform: scaleY(0);
   transform-origin: center bottom;
-  animation: siteCoffeeFlood 4s ease-in-out infinite;
+  animation: siteCoffeeRise 4s ease-in-out infinite;
 }
 
-.flood-coffee::before {
+.intermission-coffee::before {
   content: "";
   position: absolute;
   left: -10%;
@@ -769,25 +816,25 @@ button:focus-visible {
   background: rgba(255, 190, 116, 0.28);
 }
 
-.flood-preview figcaption {
+.intermission-preview figcaption {
   display: grid;
   gap: var(--s1);
 }
 
-.flood-preview strong {
+.intermission-preview strong {
   color: var(--ink);
   font-size: var(--t-small);
   font-weight: 500;
   letter-spacing: -0.01em;
 }
 
-.flood-preview small {
+.intermission-preview small {
   color: var(--ink-3);
   font-size: 13px;
   line-height: 1.45;
 }
 
-@keyframes siteCoffeeFlood {
+@keyframes siteCoffeeRise {
   0%, 20% { transform: scaleY(0.08); }
   70%, 100% { transform: scaleY(1); }
 }
@@ -819,6 +866,36 @@ button:focus-visible {
   font-size: var(--t-small);
   color: var(--ink-3);
   max-width: 56ch;
+}
+
+/* Rows carried no prose links until the privacy page, so these were falling
+   through to the UA's blue. Ink with a muted underline instead: on this palette
+   a saturated blue is the loudest thing in the column, and the surrounding text
+   is already --ink-3. */
+.row p a {
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--dur) var(--ease);
+}
+
+.row p a:hover {
+  text-decoration-color: currentColor;
+}
+
+/* A row is a three-column grid, so a row with two paragraphs puts the second
+   one in column 1 -- a 3rem gutter, which wraps it to roughly one word per
+   line. Wrapping the prose keeps it a single grid item however many paragraphs
+   it holds. The privacy page needs this; index.html's rows are all one
+   paragraph and are unaffected. */
+.row-prose {
+  display: grid;
+  gap: var(--s4);
+}
+
+.row-prose p {
+  margin: 0;
 }
 
 /* ---------- Install steps ---------- */
@@ -869,6 +946,43 @@ button:focus-visible {
   color: var(--ink-3);
 }
 
+.install-close {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  margin-top: var(--s8);
+  padding-top: var(--s6);
+  border-top: 1px solid var(--rule);
+}
+
+/* Height drives, width follows. This was a 56x56 square, which is fine for the
+   nav and footer marks (those use icon-48.png, which really is square) but not
+   for the buddy art: it is 200x257, so forcing it into a square squashed the cat
+   to 78% of her height and she read as short and wide. Setting one dimension is
+   safer than object-fit here, because it leaves no phantom box for the flex gap
+   to measure against. */
+.install-close img {
+  height: 56px;
+  width: auto;
+}
+
+.install-close p {
+  display: grid;
+  gap: var(--s1);
+  margin: 0;
+}
+
+.install-close strong {
+  color: var(--ink);
+  font-size: var(--t-small);
+  font-weight: 500;
+}
+
+.install-close span {
+  color: var(--ink-3);
+  font-size: var(--t-small);
+}
+
 .site-footer {
   padding-block: var(--s8) var(--s9);
   border-top: 1px solid var(--rule);
@@ -908,7 +1022,6 @@ button:focus-visible {
 .footer-mark img {
   width: 22px;
   height: 22px;
-  image-rendering: pixelated;
 }
 
 /* ---------- Scroll reveal ---------- */
@@ -976,8 +1089,39 @@ button:focus-visible {
   /* Five links will not fit beside the mark, and a hamburger for a six-section
      page is more machinery than the page is worth. The spine numerals carry the
      structure once you are scrolling. */
+  .nav-inner {
+    position: relative;
+  }
+
+  .nav-toggle {
+    position: absolute;
+    top: 8px;
+    right: 0;
+    z-index: 1;
+    display: inline-flex;
+  }
+
   .nav-links {
+    position: absolute;
+    top: calc(100% + 1px);
+    right: 0;
+    left: 0;
     display: none;
+    flex-direction: column;
+    gap: 0;
+    padding: var(--s2) var(--s6) var(--s4);
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+  }
+
+  .nav-links.is-open {
+    display: flex;
+  }
+
+  .nav-links a {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
   }
 
   .hero-actions .btn {
@@ -1003,10 +1147,14 @@ button:focus-visible {
   .row p {
     grid-column: 1;
   }
+
+  .install-close {
+    align-items: flex-start;
+  }
 }
 
 /* Mirrors the guard the extension already ships (src/popup.css:472-483). The
-   coffee flood is a decorative 4s loop; it must stop, not just shorten. */
+   coffee rise is a decorative 4s loop; it must stop, not just shorten. */
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -1020,7 +1168,7 @@ button:focus-visible {
     transition-duration: 0.001ms !important;
   }
 
-  .flood-coffee {
+  .intermission-coffee {
     animation: none;
     transform: scaleY(0.72);
   }

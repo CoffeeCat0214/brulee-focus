@@ -12,6 +12,11 @@
 # Packed builds for Web Store upload.
 *.zip
 
+# tools/package.py output. The zip is a build artifact and is reproducible from
+# any commit, so committing it would only ever create a second answer to "what
+# is in 1.0.0".
+dist/
+
 # Python test artifacts (tests/ runs under python3 directly today, but this
 # costs nothing and pytest would otherwise litter the tree).
 __pycache__/

@@ -52,6 +52,13 @@ SRC = ROOT / "src"
 # surface; capturing it at any other width is a review of something else.
 POPUP_WIDTH = 360
 
+# The stylesheet that holds the light/dark token sets, and therefore the only
+# one theme_css() has to rewrite. This moved out of popup.css when the tokens
+# became shared with the content script's shadow roots; pointed at the wrong
+# file, theme_css() finds no dark block and every capture silently comes back
+# in one theme.
+THEMED_SHEET = "shared.css"
+
 # Enough rope for the measure pass to lay the page out before we read it back.
 # The real height comes from the measurement, not from this.
 PROBE_HEIGHT = 900
@@ -66,12 +73,16 @@ CHROME_CANDIDATES = (
 # popup.js only ever touches storage (get/set/onChanged). Anything it does not
 # use is deliberately absent: a shim that stubs the whole extension API hides
 # the day the popup starts depending on something this cannot fake.
+#
+# `local`, not `sync`. The area name is part of the contract -- popup.js filters
+# storage.onChanged on it -- so a shim offering the wrong one would render a
+# popup stuck on its defaults and look entirely plausible doing it.
 SHIM = """\
 // Screenshot harness only. See tools/shoot_popup.py.
 const memory = {};
 window.chrome = {
   storage: {
-    sync: {
+    local: {
       get: (defaults, cb) => cb({ ...defaults, ...memory }),
       set: (patch, cb) => { Object.assign(memory, patch); if (cb) cb(); }
     },
@@ -130,7 +141,7 @@ def dark_block_span(css: str) -> tuple[int, int]:
             depth -= 1
             if depth == 0:
                 return start, i + 1
-    raise ValueError("popup.css: dark media block is unbalanced")
+    raise ValueError(f"{THEMED_SHEET}: dark media block is unbalanced")
 
 
 def theme_css(css: str, theme: str) -> str:
@@ -138,7 +149,8 @@ def theme_css(css: str, theme: str) -> str:
     if theme == "light":
         return css[:start] + css[end:]
     # Hoist the block's contents to top level so they apply unconditionally.
-    # The block is a bare `:root { ... }`, so its body is already a valid rule.
+    # The block is a bare `:root, :host { ... }`, so its body is already a
+    # valid rule.
     inner = css[css.index("{", start) + 1 : end - 1]
     return css[:start] + inner + css[end:]
 
@@ -149,16 +161,21 @@ def stage(workdir: Path, theme: str, pane: str, measure: bool = False) -> Path:
     out = workdir / name
     out.mkdir(parents=True, exist_ok=True)
 
-    for asset in ("popup.js", "mug-geometry.js"):
+    for asset in ("popup.js", "settings.js", "mug-geometry.js", "popup.css"):
         shutil.copy(SRC / asset, out / asset)
     (out / "shim.js").write_text(SHIM)
-    (out / "popup.css").write_text(theme_css((SRC / "popup.css").read_text(), theme))
+    # Only the token sheet carries a dark block, so it is the only one that gets
+    # rewritten. Headless Chrome reports prefers-color-scheme: dark by default,
+    # which means an unforced capture is whatever the flags happened to produce
+    # rather than the theme it claims -- so the theme is decided here, in the
+    # CSS, and never left to the host.
+    (out / THEMED_SHEET).write_text(theme_css((SRC / THEMED_SHEET).read_text(), theme))
 
     html = (SRC / "popup.html").read_text()
     # Ahead of every other script, so the shim exists before popup.js runs.
     html = html.replace(
-        '<script src="mug-geometry.js"></script>',
-        '<script src="shim.js"></script>\n    <script src="mug-geometry.js"></script>',
+        '<script src="settings.js"></script>',
+        '<script src="shim.js"></script>\n    <script src="settings.js"></script>',
     )
     if pane == "settings":
         html = html.replace("</body>", f"    {OPEN_SETTINGS}  </body>")

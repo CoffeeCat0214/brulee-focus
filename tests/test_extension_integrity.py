@@ -42,9 +42,55 @@ def test_manifest_core_contract():
     assert manifest["manifest_version"] == 3
     assert manifest["action"]["default_popup"] == "src/popup.html"
     assert "storage" in manifest["permissions"]
-    assert manifest["content_scripts"][0]["js"] == ["src/mug-geometry.js", "src/content.js"]
+    assert manifest["content_scripts"][0]["js"] == [
+        "src/settings.js",
+        "src/mug-geometry.js",
+        "src/content.js",
+    ]
     assert manifest["content_scripts"][0]["css"] == ["src/content.css"]
     assert manifest["content_scripts"][0]["run_at"] == "document_idle"
+
+
+def test_manifest_asks_for_least_privilege():
+    """What the extension requests has to stay defensible at review time.
+
+    `host_permissions` is the specific thing being kept out. It was declared for
+    all http/https and never used: content scripts inject from their own
+    `matches`, and the only things fetched are the extension's own
+    web_accessible_resources, which chrome-extension:// URLs reach without any
+    host grant. It bought nothing and it is the first line a reviewer reads.
+    """
+    manifest = read_manifest()
+
+    assert "host_permissions" not in manifest, (
+        "content_scripts.matches already covers injection; host_permissions "
+        "grants page access this extension never uses"
+    )
+    assert set(manifest["permissions"]) == {"storage", "alarms"}, (
+        "storage holds the settings, alarms ends the session; anything else "
+        "needs a justification in the store listing"
+    )
+    assert "optional_permissions" not in manifest
+
+    # A version the Web Store will accept as a first public release, rather than
+    # the 0.1.0 this shipped as while it was a local unpacked build.
+    assert re.fullmatch(r"\d+\.\d+\.\d+", manifest["version"]), manifest["version"]
+    assert manifest["version"] != "0.1.0"
+
+    # color-mix() in src/intermission.css is the highest floor in the codebase
+    # (Chrome 111); :has() is 105 and inert is 102. Without this Chrome offers
+    # the extension to browsers that render the intermission with transparent
+    # gradients and no way to know why.
+    assert int(manifest["minimum_chrome_version"]) >= 111
+
+
+def test_background_worker_is_wired():
+    manifest = read_manifest()
+    assert manifest["background"]["service_worker"] == "src/background.js"
+    # MV3 service workers cannot be persistent, and declaring the key at all is
+    # a manifest V2 habit that fails review.
+    assert "persistent" not in manifest["background"]
+    assert (ROOT / "src/background.js").is_file()
 
 
 def test_manifest_referenced_files_exist():
@@ -63,44 +109,198 @@ def test_manifest_referenced_files_exist():
 
 def test_javascript_files_parse():
     assert JSC.exists(), "JavaScriptCore is required for JS parse checks"
+    assert_js_parses("src/settings.js")
+    assert_js_parses("src/background.js")
     assert_js_parses("src/content.js")
     assert_js_parses("src/popup.js")
     assert_js_parses("src/mug-geometry.js")
     assert_js_parses("site/script.js")
 
 
-def test_style_templates_have_no_stray_backticks():
-    """Guards a gap in the parse check above.
+def test_session_state_machine_behaves():
+    """Actually run the completion logic, rather than reading it.
 
-    content.js keeps its CSS in template literals, so a backtick inside a CSS
-    comment silently ends the string. JSC parses function bodies lazily, and
-    buildStyles() is never called during the parse check -- so that break sails
-    through test_javascript_files_parse and only explodes in the browser. This
-    happened for real while writing the sprite styles.
+    Everything else here is static analysis. This concatenates the mocks, the
+    shared session model and the service worker and drives them through the
+    cases that matter: a duplicate alarm delivery must not double-count a
+    session, an alarm that never fires must still be settled by the next
+    startup, pausing must disarm, and a position write (which happens several
+    times a second while dragging) must not rearm anything.
+
+    The success line is checked rather than the exit status on purpose: an
+    assertion thrown inside the harness's async main() surfaces as an unhandled
+    rejection, and jsc still exits 0 on those. Trusting the return code here
+    would make this test pass no matter what the extension did.
     """
-    source = read_text("src/content.js")
-    marker = ".textContent = `"
-    pos = 0
-    checked = 0
-    while (start := source.find(marker, pos)) != -1:
-        open_tick = start + len(marker) - 1
-        end = source.find("`", open_tick + 1)
-        assert end != -1, "unterminated style template literal"
+    assert JSC.exists(), "JavaScriptCore is required for the session harness"
 
-        # Checking the body for backticks would be useless: a stray one is
-        # indistinguishable from the real terminator, since it IS the
-        # terminator as far as the parser is concerned. What gives it away is
-        # what follows. A correctly closed style literal is immediately
-        # followed by `;` -- a premature close is followed by more CSS.
-        tail = source[end + 1:].lstrip()
-        line = source.count("\n", 0, end) + 1
-        assert tail.startswith(";"), (
-            f"style template at line {line} closes early -- "
-            f"stray backtick in the CSS, followed by {tail[:40]!r}"
+    sources = ("tests/session_mocks.js", "src/settings.js", "src/background.js",
+               "tests/session_harness.js")
+    with tempfile.TemporaryDirectory() as tmp:
+        bundle = Path(tmp) / "session.js"
+        bundle.write_text("\n".join(read_text(path) for path in sources), encoding="utf-8")
+        result = subprocess.run(
+            [str(JSC), str(bundle)], check=False, capture_output=True, text=True
         )
-        checked += 1
-        pos = end + 1
-    assert checked >= 2, f"expected the cat and break-overlay styles, found {checked}"
+
+    output = result.stdout + result.stderr
+    assert "OK session state machine" in output, output.strip() or "harness produced no output"
+
+
+def test_session_model_has_one_definition():
+    """src/settings.js is the only place a session is defined.
+
+    The brew table, the defaults and the remaining-time maths used to be
+    copy-pasted between content.js and popup.js. Two copies drifted quietly --
+    nothing failed, the popup and the float just disagreed about what a mode
+    meant -- and adding the service worker would have made three. The test that
+    used to stand in for this only checked that the same storage KEY NAMES
+    appeared in both files, which a copy-paste satisfies trivially.
+    """
+    settings = read_text("src/settings.js")
+    consumers = {
+        name: read_text(f"src/{name}")
+        for name in ("content.js", "popup.js", "background.js")
+    }
+
+    for symbol in ("BREW_MODES", "DEFAULT_SETTINGS", "SIZE_MAP"):
+        assert f"const {symbol}" in settings, f"{symbol} must live in settings.js"
+        for name, source in consumers.items():
+            assert f"const {symbol} =" not in source, (
+                f"src/{name} redefines {symbol}; destructure it from "
+                f"globalThis.COFFEECAT instead"
+            )
+
+    # Duration literals belong to the brew table. A minutes-to-ms expression in a
+    # consumer is how a mode's real length drifts from the copy describing it.
+    for name, source in consumers.items():
+        assert not re.search(r"\d+\s*\*\s*60\s*\*\s*1000", source), (
+            f"src/{name} spells out a duration; take it from BREW_MODES"
+        )
+
+    for name, source in consumers.items():
+        assert "globalThis.COFFEECAT" in source, f"src/{name} does not read the shared model"
+
+    # The popup loads it as a plain script, so order is the whole contract:
+    # popup.js destructures the global at its top level. Read the actual <script>
+    # sequence rather than searching for filenames -- the prose around these tags
+    # names them too, and a substring search finds the comment first.
+    scripts = re.findall(r'<script src="([^"]+)"', read_text("src/popup.html"))
+    assert scripts.index("settings.js") < scripts.index("popup.js"), scripts
+    assert scripts.index("mug-geometry.js") < scripts.index("popup.js"), scripts
+    # importScripts, not import: the worker is classic, which is what lets the
+    # same file serve a content script, a document and a worker with no build.
+    assert 'importScripts("settings.js")' in consumers["background.js"]
+
+
+def test_session_completion_has_exactly_one_owner():
+    """Only the service worker may end a focus session.
+
+    Every mounted content script used to run its own 250ms tick and write the
+    completion patch when it saw the clock hit zero. N open tabs meant N writes
+    of the same patch, each waking every other tab's storage listener; and with
+    no http/https tab open, nothing ticked, so the session never ended at all.
+
+    The rule is therefore about WRITES, not about reads. Both surfaces still
+    derive remaining time from the stored timestamps -- that is what keeps them
+    correct between alarms -- they just no longer decide anything.
+    """
+    background = read_text("src/background.js")
+    content = read_text("src/content.js")
+    popup = read_text("src/popup.js")
+
+    assert "buildCompletionPatch" in background
+    assert "chrome.alarms" in background
+
+    for name, source in (("content.js", content), ("popup.js", popup)):
+        assert "buildCompletionPatch" not in source, (
+            f"src/{name} must not complete sessions; src/background.js owns that"
+        )
+        assert "completeFocusSession" not in source, (
+            f"src/{name} still carries the old completion path"
+        )
+        # The tell-tale of a surface writing the completion patch itself.
+        assert "breakRunning: true" not in source, (
+            f"src/{name} starts an intermission; only the service worker may"
+        )
+
+    # The patch is built in settings.js and written in exactly one place.
+    assert "breakRunning: true" in read_text("src/settings.js")
+    assert background.count("chrome.storage.local.set(patch)") == 1
+
+    # Ending the break is the same problem in miniature: an expired intermission
+    # has to leave the screen locally, but clearing the stored flag from every
+    # tab is the same herd. content.js may remove the panel; it may not write.
+    assert "removeIntermission()" in content
+
+
+def test_storage_is_local_everywhere():
+    """The privacy claim in the UI has to be true of the code.
+
+    The popup says "CoffeeCat stays local. Nothing leaves your browser." while
+    the extension used chrome.storage.sync, which replicates through the user's
+    Google account to their other devices. That is a statement the Web Store
+    data-use disclosure asks you to certify, so it is pinned here rather than
+    left to a copy review.
+
+    storage.local also removes the sync write-rate quota and stops a session
+    started on one machine from appearing on another.
+    """
+    surfaces = ("src/content.js", "src/popup.js", "src/background.js")
+    for path in surfaces:
+        source = read_text(path)
+        assert "storage.sync" not in source, f"{path} still uses chrome.storage.sync"
+        assert "storage.local" in source, f"{path} does not touch storage.local"
+        # The area name is a filter on storage.onChanged; the wrong one means the
+        # surface silently stops responding to changes it should see.
+        if "onChanged" in source:
+            assert '!== "local"' in source, f"{path} filters onChanged on the wrong area"
+
+    # The screenshot harness fakes this API. Pointed at the wrong area it renders
+    # a popup stuck on defaults, which looks entirely plausible.
+    assert "storage.sync" not in read_text("tools/shoot_popup.py")
+
+    assert "Nothing leaves your browser" in read_text("src/popup.html")
+
+
+def test_shadow_css_lives_in_files():
+    """Replaces test_style_templates_have_no_stray_backticks.
+
+    The shadow roots' CSS used to be two template literals inside content.js,
+    which had a failure mode nothing else could catch: a backtick in a CSS
+    comment silently ends the string, JSC parses function bodies lazily so
+    buildStyles() was never executed during the parse check, and the break
+    only showed up in a browser. The old test hand-rolled a scanner for it.
+
+    The CSS is now in real files, adopted as constructed stylesheets, so that
+    hazard is gone by construction. What is worth pinning instead is that it
+    stays that way -- CSS-in-a-JS-string is the thing being prevented -- plus
+    the wiring that makes the files reachable, since a shadow root fetching a
+    resource that is not web-accessible fails at runtime and never at import.
+    """
+    content = read_text("src/content.js")
+    manifest = read_manifest()
+    resources = {
+        resource
+        for group in manifest["web_accessible_resources"]
+        for resource in group["resources"]
+    }
+
+    for path in ("src/shared.css", "src/float.css", "src/intermission.css"):
+        assert (ROOT / path).is_file(), f"{path} is missing"
+        assert path in content, f"{path} is not referenced by content.js"
+        assert path in resources, f"{path} is not web-accessible"
+
+    assert ".textContent = `" not in content, (
+        "shadow CSS belongs in the .css files above, not in a template literal"
+    )
+    # The mechanism, not just the absence of the old one: <link> inside a shadow
+    # root paints the tree unstyled for a frame, and one of these trees covers
+    # the whole viewport.
+    assert "adoptedStyleSheets" in content
+
+    # The popup reads the same token file, so the two surfaces cannot drift.
+    assert "shared.css" in read_text("src/popup.html")
 
 
 def test_purr_bubble_scales_and_carries_no_hardcoded_chrome():
@@ -112,13 +312,14 @@ def test_purr_bubble_scales_and_carries_no_hardcoded_chrome():
     shape that drift took last time, hence naming them.
     """
     content = read_text("src/content.js")
+    css = read_text("src/float.css")
 
-    start = content.index("      .purr-bubble {")
-    rule = content[start:content.index("}", start)]
+    start = css.index(".purr-bubble {")
+    rule = css[start:css.index("}", start)]
 
     assert "var(--cat-unit)" in rule, "bubble metrics must scale with the host box"
     assert not re.search(r"^\s*border:", rule, re.M), "the material has no stroke"
-    assert "#fff8ef" not in rule, "surface comes from --bubble-surface"
+    assert "#fff8ef" not in rule, "surface comes from --cup-body in shared.css"
     assert "steps(" not in rule, "stepped motion belongs to the pixel-art era"
 
     # --cat-unit has exactly one producer: the same assignment that turns a size
@@ -158,6 +359,11 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
         "assets/mug/mug-fill.png",
         "assets/mug/mug-front.png",
         "assets/mug/mug-steam.png",
+        # The shadow roots fetch their stylesheets, so those files have to be
+        # reachable from a content script. See test_shadow_css_lives_in_files.
+        "src/shared.css",
+        "src/float.css",
+        "src/intermission.css",
     }
     assert "coffee-meter" in content
     assert "mug-window" in content
@@ -166,8 +372,12 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
     # The drain must translate, never scale: the sprite carries its own surface
     # ellipse and crema at a fixed thickness, and scaling squashes both. Scoped
     # to the statement that moves the liquid -- scaleY is legitimate elsewhere
-    # (the napping squash, the break overlay's coffee flood).
-    liquid_vars = ("fillElement", "progressFill", "demoFill")
+    # (the napping squash, the intermission's coffee rise).
+    #
+    # intermissionFill is the intermission's own cup, which runs the mechanism
+    # backwards: it fills as the break elapses. Named here so the rule covers it
+    # too; leaving it out would silently exempt the newest liquid.
+    liquid_vars = ("fillElement", "progressFill", "demoFill", "intermissionFill")
     moves = 0
     for source in ("src/content.js", "src/popup.js", "site/script.js"):
         for line in read_text(source).splitlines():
@@ -182,12 +392,16 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
             assert "scaleY(" not in line, (
                 f"{source} scales the liquid instead of translating it: {line.strip()}"
             )
-    assert moves == 3, f"expected one drain per surface, found {moves}"
+    assert moves == 4, f"expected one liquid move per surface, found {moves}"
 
     # All three surfaces read the same generated geometry.
     for source in ("src/content.js", "src/popup.js", "site/script.js"):
         assert "COFFEECAT_MUG" in read_text(source)
 
+    # The persisted shape now has one definition, so this asserts it exists
+    # there rather than asserting the same names appear in two hand-kept copies.
+    # See test_session_model_has_one_definition.
+    settings_module = read_text("src/settings.js")
     for key in (
         "coffeeDurationMs",
         "coffeePausedRemainingMs",
@@ -200,17 +414,14 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
         "breakRunning",
         "breakStartedAt",
         "breakDurationMs",
-        "snoozeUsedForSession",
-        "snoozeSessionRunning",
         "focusStats",
     ):
-        assert key in content
-        assert key in popup
+        assert key in settings_module
 
-    assert "coffeecat-break-root" in content
-    assert "break-overlay" in content
-    assert "coffee-flood" in content
-    assert "flood-stats" in content
+    assert "coffeecat-intermission-root" in content
+    assert "intermission" in content
+    assert "coffee-rise" in content
+    assert "intermission-stats" in content
 
     for element_id in (
         "timer-display",
@@ -225,26 +436,37 @@ def test_focus_timer_contract_is_wired_to_mug_sprite():
     # The popup used to end in a lifetime "N sessions / N min / N cups" strip.
     # It never reset, so it only ever counted up -- and two of its three numbers
     # were the same counter. The stats themselves still accumulate in storage
-    # for the coffee-flood share card; only the popup readout is gone.
+    # for the intermission's summary line; only the popup readout is gone.
     for element_id in ("stat-sessions", "stat-minutes", "stat-cups"):
         assert f'id="{element_id}"' not in html
-    assert "focusStats" in popup, "storage-side stats must survive the footer"
+    # The stats themselves still accumulate: buildCompletionPatch() increments
+    # them, the service worker writes that patch, and the intermission renders
+    # the summary line.
+    settings_module = read_text("src/settings.js")
+    assert "focusStats" in settings_module
+    assert settings_module.index("function buildCompletionPatch") < settings_module.index(
+        "cupsFinished: stats.cupsFinished + 1"
+    )
+    assert "buildCompletionPatch" in read_text("src/background.js")
+    assert "formatFocusSummary" in content
 
     for brew_mode in ("espresso", "slow-pour", "cold-brew", "decaf"):
         assert f'data-brew-mode="{brew_mode}"' in html
-        assert brew_mode in popup
+        assert brew_mode in read_text("src/settings.js")
 
     assert "brew-option" in html
     assert "selectBrewMode" in popup
 
-    # The coffee flood is unconditional. It used to hang off a per-mode
+    # The intermission is unconditional. It used to hang off a per-mode
     # `breakOnComplete` flag that only Slow Pour set, which meant three of the
-    # four modes hit zero and showed nothing at all. Both completion paths must
-    # now start the break outright, and neither may reintroduce the flag.
-    assert "breakRunning: true" in popup
-    assert "breakRunning: true" in content
-    assert "breakOnComplete" not in popup
-    assert "breakOnComplete" not in content
+    # four modes hit zero and showed nothing at all. Completion now happens in
+    # exactly one place (see test_session_completion_has_exactly_one_owner), and
+    # that place must start the break outright rather than reintroduce the flag.
+    # buildCompletionPatch() in settings.js is where the intermission is opened;
+    # src/background.js is its only caller.
+    assert "breakRunning: true" in read_text("src/settings.js")
+    for source in (popup, content, read_text("src/background.js"), read_text("src/settings.js")):
+        assert "breakOnComplete" not in source
 
 
 def test_brew_modes_match_markup():
@@ -256,11 +478,12 @@ def test_brew_modes_match_markup():
     never had. This asserts a real contract instead: the modes the popup can
     render and the modes the markup offers must be the same set.
     """
+    settings = read_text("src/settings.js")
     popup = read_text("src/popup.js")
     html = read_text("src/popup.html")
 
     markup_modes = set(re.findall(r'data-brew-mode="([^"]+)"', html))
-    config_modes = set(re.findall(r'^\s*id: "([^"]+)",$', popup, re.MULTILINE))
+    config_modes = set(re.findall(r'^\s*id: "([^"]+)",$', settings, re.MULTILINE))
 
     assert markup_modes, "no brew modes found in popup.html"
     assert markup_modes == config_modes, (
@@ -268,17 +491,27 @@ def test_brew_modes_match_markup():
         f"{sorted(config_modes)}"
     )
 
-    # Every mode needs the copy the popup renders for it.
-    for mode in sorted(config_modes):
-        assert f'"{mode}"' in popup or f"{mode}:" in popup
+    # Every mode needs both the copy the popup renders and the duration it
+    # promises, and the two have to agree. The copy is prose, so this reads the
+    # number back out of it rather than trusting that someone updated both.
+    for block in re.findall(r"\{[^{}]*?id: \"[^\"]+\"[^{}]*?\}", settings, re.DOTALL):
+        mode_id = re.search(r'id: "([^"]+)"', block).group(1)
+        duration = re.search(r"durationMs: (\d+) \* 60 \* 1000", block)
+        copy = re.search(r'copy: "(\d+) minutes', block)
+        assert duration and copy, f"{mode_id} is missing a duration or its copy"
+        assert duration.group(1) == copy.group(1), (
+            f"{mode_id} runs {duration.group(1)} minutes but its copy says "
+            f"{copy.group(1)}"
+        )
 
     # Ambient audio does not exist -- playPurr() is the only sound path.
     # Keep the UI from re-acquiring claims the code cannot back.
     content = read_text("src/content.js")
-    assert "ambient" not in popup.lower()
+    assert "ambient" not in (popup + settings).lower()
     for invented in ("misu", "brulee", "cafe hum", "rain sounds"):
         assert invented not in popup.lower(), f"unimplemented claim in popup: {invented}"
         assert invented not in content.lower()
+        assert invented not in settings.lower()
 
 
 def test_static_site_documents_v2_launch():
@@ -287,14 +520,15 @@ def test_static_site_documents_v2_launch():
     script = read_text("site/script.js")
 
     assert "CoffeeCat" in index
-    # The break feature is named "Coffee break" in site copy. It was previously
-    # "Gentle Gatekeeper"; renamed because visitors read the old name as jargon.
-    assert "Coffee break" in index
+    # The feature is named "Intermission" in site copy. It has been renamed
+    # twice: "Gentle Gatekeeper" read as jargon, and "coffee flood" read as
+    # damage. The section id is still #gatekeeper, which only anchors deep links.
+    assert "Intermission" in index
     assert "../assets/coffeecat-buddy.png" in index
     assert "demo-fill" in index
     assert "requestAnimationFrame" in script
-    assert ".flood-preview" in styles
-    assert "siteCoffeeFlood" in styles
+    assert ".intermission-preview" in styles
+    assert "siteCoffeeRise" in styles
 
 
 MUG_LAYERS = (
@@ -382,22 +616,124 @@ def test_generated_geometry_is_in_sync():
 
 def test_png_assets_are_valid_rgba():
     expected_sizes = {
-        "assets/coffeecat-buddy.png": None,
+        # Delivery size, not authoring size. See test_sprites_are_cut_to_delivery_size.
+        "assets/coffeecat-buddy.png": (200, 257),
+        "assets/coffeecat-buddy-large.png": (512, 657),
+        "assets/source/coffeecat-buddy-master.png": (890, 1142),
         "assets/icons/icon-16.png": (16, 16),
         "assets/icons/icon-32.png": (32, 32),
         "assets/icons/icon-48.png": (48, 48),
         "assets/icons/icon-128.png": (128, 128),
-        **{layer: (512, 512) for layer in MUG_LAYERS},
+        **{layer: (256, 256) for layer in MUG_LAYERS},
     }
 
     for path, expected_size in expected_sizes.items():
         width, height, bit_depth, color_type, *_ = png_header(path)
-        if expected_size:
-            assert (width, height) == expected_size
-        else:
-            assert width > 0 and height > 0
+        assert (width, height) == expected_size, f"{path} is {width}x{height}"
         assert bit_depth == 8
         assert color_type == 6
+
+
+def test_buddy_sprite_is_reproducible():
+    """The shipped sprite must match what the generator produces from the master.
+
+    Same contract as test_mug_assets_are_reproducible: the art is verifiable, so
+    a hand-edited PNG fails here instead of shipping. The master lives in
+    assets/source/ and is deliberately not packaged.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "render_buddy.py"), tmp],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=ROOT,
+        )
+        assert result.returncode == 0, result.stderr or result.stdout
+
+        for name in ("coffeecat-buddy.png", "coffeecat-buddy-large.png"):
+            regenerated = Path(tmp) / name
+            assert regenerated.is_file(), f"generator did not emit {name}"
+            assert png_pixels(regenerated) == png_pixels(ROOT / "assets" / name), (
+                f"assets/{name} is stale -- re-run tools/render_buddy.py"
+            )
+
+
+def test_sprites_are_cut_to_delivery_size():
+    """The float's art is decoded per tab on every page someone visits.
+
+    The extension used to ship the 890x1142 illustration master and paint it in
+    a box at most 116px square, which cost ~4MB of decoded bitmap per tab to
+    draw a thumbnail. It also looked worse: the master is continuous-tone, so
+    the `image-rendering: pixelated` it was painted under was not preserving a
+    pixel grid -- there is none -- it was dropping ~98% of rows and columns and
+    keeping whatever landed on the sampling grid.
+
+    Both halves are pinned. Sizes are checked above; this checks that nothing
+    re-adds nearest-neighbour sampling or points the float back at the master.
+    """
+    float_css = read_text("src/float.css")
+    declarations = [
+        line for line in float_css.splitlines()
+        if "image-rendering" in line and not line.lstrip().startswith(("*", "/*"))
+    ]
+    assert declarations == [], f"nearest-neighbour sampling is back: {declarations}"
+
+    content = read_text("src/content.js")
+    assert "coffeecat-buddy.png" in content
+    assert "coffeecat-buddy-large.png" not in content, (
+        "the large render is the site's hero, not the float's sprite"
+    )
+    assert "assets/source/" not in content
+
+
+def test_package_ships_the_extension_and_nothing_else():
+    """tools/package.py is an allowlist; this checks it from both directions.
+
+    A denylist fails open -- add assets/scratch/ and it ships silently. The
+    allowlist can fail the other way instead: a new file the manifest references
+    that nobody added to INCLUDE produces a zip that installs and then breaks at
+    runtime, which is the failure the Web Store review will not catch for you.
+    """
+    sys.path.insert(0, str(ROOT / "tools"))
+    try:
+        import package
+    finally:
+        sys.path.pop(0)
+
+    shipped = {str(p.relative_to(ROOT)) for p in package.collect()}
+
+    manifest = read_manifest()
+    referenced = set(manifest["icons"].values())
+    referenced.update(manifest["action"]["default_icon"].values())
+    referenced.add(manifest["action"]["default_popup"])
+    referenced.add(manifest["background"]["service_worker"])
+    for content_script in manifest["content_scripts"]:
+        referenced.update(content_script.get("css", []))
+        referenced.update(content_script.get("js", []))
+    for group in manifest["web_accessible_resources"]:
+        referenced.update(group["resources"])
+    referenced.add("manifest.json")
+
+    assert referenced <= shipped, (
+        f"manifest references files the package omits: {sorted(referenced - shipped)}"
+    )
+
+    # popup.html pulls its stylesheets itself; the manifest never names them.
+    for linked in re.findall(r'<link rel="stylesheet" href="([^"]+)"', read_text("src/popup.html")):
+        assert f"src/{linked}" in shipped, f"popup.html links {linked}, which is not packaged"
+    for script in re.findall(r'<script src="([^"]+)"', read_text("src/popup.html")):
+        assert f"src/{script}" in shipped, f"popup.html loads {script}, which is not packaged"
+
+    for excluded in package.EXCLUDED_ON_PURPOSE:
+        assert not any(path.startswith(excluded.rstrip("/")) for path in shipped), (
+            f"{excluded} is in the package"
+        )
+
+    total = sum((ROOT / path).stat().st_size for path in shipped)
+    assert total <= package.SIZE_BUDGET_BYTES, (
+        f"payload is {total:,} bytes, over the {package.SIZE_BUDGET_BYTES:,} budget"
+    )
 
 
 if __name__ == "__main__":

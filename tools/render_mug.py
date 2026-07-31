@@ -49,14 +49,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 # ── Palette ──────────────────────────────────────────────────────────────────
-# Sampled from assets/coffeecat-buddy.png. The cat is NOT pixel art: it is a
-# 890x1142 smoothly-shaded illustration (~28k unique colours) that only looks
-# chunky because `image-rendering: pixelated` downscales it with nearest
-# neighbour. So the mug is authored the same way -- soft-shaded at comparable
-# resolution -- and pushed through the same downscale.
+# Sampled from assets/source/coffeecat-buddy-master.png. The cat is NOT pixel
+# art: it is a 890x1142 smoothly-shaded illustration (~28k unique colours). It
+# used to be painted under `image-rendering: pixelated`, and the mug was
+# authored to match that -- soft-shaded at high resolution, then pushed through
+# the same nearest-neighbour downscale.
 #
-# To re-derive: decode the buddy PNG, bucket opaque pixels by luminance/16, and
-# average each bucket. That produced this ramp, light to dark:
+# That is no longer what either object does. Nearest-neighbour at those ratios
+# was not producing pixel art, it was producing noise: it keeps whichever pixels
+# happen to land on the sampling grid, which stair-stepped the outline and broke
+# the whiskers into dashes. Both sprites are now box-filtered down to delivery
+# size (see tools/render_buddy.py) and painted with the browser's normal
+# sampling. The palette below is unaffected -- it is about hue, not resolution.
+#
+# To re-derive: decode the buddy master, bucket opaque pixels by luminance/16,
+# and average each bucket. That produced this ramp, light to dark:
 CAT_RAMP = [
     (0xFC, 0xE0, 0xC1), (0xFC, 0xD1, 0xA5), (0xF9, 0xC0, 0x8A),
     (0xF2, 0xAD, 0x74), (0xE8, 0x9C, 0x65), (0xD8, 0x8B, 0x59),
@@ -86,8 +93,14 @@ CREMA = (0xFF, 0xCE, 0x8F)
 # ── Geometry ─────────────────────────────────────────────────────────────────
 # Normalised 0..1 across a square canvas. The body sits left of centre because
 # the handle needs room on the right.
-CANVAS = 512
-SS = 3  # supersampling factor per axis; 3 is enough given the ~10x downscale
+# Delivery size, not authoring size. The float paints the meter at 44% of a
+# 64/88/116px box, and the liquid layer -- the largest of the four, since it is
+# scaled back up by 100/FILL_WINDOW.width to stay in register with the vessel --
+# tops out near 185 device px on a 2x display. 256 covers that with headroom on
+# a 3x display and costs a quarter of what 512 did. Raising this only makes the
+# extension heavier on every page; it cannot make the mug look better.
+CANVAS = 256
+SS = 3  # supersampling factor per axis; 3 is enough given the ~5x downscale
 
 CX = 0.430          # body centre x
 R_OUT = 0.310       # outer half-width

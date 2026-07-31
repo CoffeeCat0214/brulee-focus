@@ -1,106 +1,12 @@
-/* ── Tokens ──────────────────────────────────────────────────────────────
-   Every value the popup uses lives here. Nothing below this block should
-   contain a raw hex literal — that is what let the old stylesheet drift into
-   seven differently-weighted panels.                                       */
+/* ── Popup layout ────────────────────────────────────────────────────────
+   Tokens and the shared controls (.button-primary, .button-plain,
+   :focus-visible) live in shared.css, which popup.html links ahead of this
+   file and the content script adopts into both of its shadow roots. This file
+   is only what is specific to the 360px popup: pane machinery, the hero, the
+   segmented control, settings rows and the switch.
 
-:root {
-  color-scheme: light dark;
-
-  /* Type. `system-ui` resolves to SF on macOS; SF Pro is NOT bundleable
-     (Apple's license restricts it to Apple platforms), and naming it here
-     would only match a manual developer install. */
-  --font: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", sans-serif;
-
-  /* 4pt grid, per HIG */
-  --s1: 4px;
-  --s2: 8px;
-  --s3: 12px;
-  --s4: 16px;
-  --s5: 20px;
-  --s6: 24px;
-
-  --r-seg: 7px;
-  --r-track: 9px;
-  --r-card: 12px;
-
-  --ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --dur: 240ms;
-  --dur-thumb: 280ms;
-
-  /* The chrome is neutral on purpose. Every one of these used to carry a brown
-     cast (label #241812, secondary #6F594D, fills mixed from #4A2B1D), which
-     put a weak tint of the theme on every pixel and left nothing for the theme
-     itself to say. Warmth now lives in exactly two places: a near-imperceptible
-     bias in the greys (they are warm-neutral, not blue-grey, so they sit under
-     the cup without clashing) and the cup itself. */
-  --bg: #fcfbf9;
-  --label: #1b1a18;
-  --label-secondary: #6b6862;
-  --label-tertiary: #97938c;
-  --separator: rgba(28, 26, 24, 0.1);
-  --fill-tertiary: rgba(28, 26, 24, 0.05);
-  --fill-hover: rgba(28, 26, 24, 0.045);
-  --thumb: #ffffff;
-  --switch-off: rgba(28, 26, 24, 0.16);
-
-  /* Primary action is ink, not coffee. A saturated full-width slab is the
-     loudest object on a 360px surface, and spending the brand colour there
-     meant the button outshouted the cup, the one thing on screen that is
-     actually about coffee. Ink recedes; the cup becomes the only chroma.
-     It inverts in dark mode (below) because near-black on near-black is not
-     a button. */
-  --cta: #1f1d1b;
-  --cta-hover: #35312d;
-  --cta-pressed: #46413b;
-  --on-cta: #ffffff;
-
-  /* Hover for the secondary pill: --fill-hover is a wash meant for transparent
-     icon buttons and is invisible when it lands on --fill-tertiary. */
-  --fill-secondary: rgba(28, 26, 24, 0.09);
-
-  /* Dark roast, not plum. This was #470928 (EDGE in tools/render_mug.py) on the
-     theory that the vector cup should use the illustration's own edge colour.
-     But the raster never applies EDGE at full strength: it blends it at 0.18-0.58
-     into browns, so the darkest structural pixel in mug-back.png is #8D5C62 and
-     the darkest in mug-fill.png is #32170D. A 2.8-unit stroke of undiluted EDGE
-     overstated it, which nothing revealed while the whole UI was brown-tinted.
-     Now that the chrome is neutral and this cup is the only chroma on screen, a
-     violet ring around it was the first thing the eye landed on. */
-  --cup-stroke: #3a2320;
-  --cup-body: #fff8ef;
-  --shadow-thumb: 0 1px 3px rgba(28, 26, 24, 0.16), 0 0 0 0.5px rgba(28, 26, 24, 0.05);
-  /* The cup keeps a warm shadow while the UI chrome above does not: it is a
-     physical object lit by the scene, not a control. */
-  --cup-shadow: 0 5px 10px rgba(74, 43, 29, 0.14);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1b19;
-    --label: #f4f2ee;
-    --label-secondary: rgba(244, 242, 238, 0.6);
-    --label-tertiary: rgba(244, 242, 238, 0.4);
-    --separator: rgba(255, 255, 255, 0.12);
-    --fill-tertiary: rgba(255, 255, 255, 0.08);
-    --fill-hover: rgba(255, 255, 255, 0.06);
-    --thumb: #3a3733;
-    --switch-off: rgba(255, 255, 255, 0.18);
-    --fill-secondary: rgba(255, 255, 255, 0.14);
-
-    /* Inverted, not lightened. Nudging the light-mode ink up to a mid-grey
-       would land it in the same value band as --fill-tertiary and the button
-       would read as disabled. */
-    --cta: #f4f2ee;
-    --cta-hover: #ffffff;
-    --cta-pressed: #d9d5cf;
-    --on-cta: #1c1b19;
-
-    --cup-stroke: #c9bcb1;
-    --cup-body: #2a2724;
-    --shadow-thumb: 0 1px 3px rgba(0, 0, 0, 0.45);
-    --cup-shadow: 0 5px 12px rgba(0, 0, 0, 0.5);
-  }
-}
+   Nothing here should contain a raw hex literal. Anything that wants one is
+   either a token or a mistake.                                             */
 
 /* ── Base ────────────────────────────────────────────────────────────── */
 
@@ -114,7 +20,7 @@ body {
   background: var(--bg);
   color: var(--label);
   font-family: var(--font);
-  font-size: 15px;
+  font-size: var(--t-body);
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
@@ -125,15 +31,6 @@ p,
 dl,
 dd {
   margin: 0;
-}
-
-/* Ink, not a tint. A coloured ring was the last place the theme colour leaked
-   into the chrome, and an ink ring is the higher-contrast one in both themes
-   anyway (offset puts it on --bg, never on the button it wraps). */
-:focus-visible {
-  outline: 2px solid var(--label);
-  outline-offset: 2px;
-  border-radius: var(--r-seg);
 }
 
 /* ── Pane machinery ──────────────────────────────────────────────────────
@@ -188,7 +85,7 @@ dd {
 
 .bar h1,
 .bar h2 {
-  font-size: 17px;
+  font-size: var(--t-title);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -219,7 +116,11 @@ dd {
 /* ── Hero: cup + timer + caption ─────────────────────────────────────────
    Single left spine, shared with every other row in the pane. Spacing is
    deliberately uneven: cup→timer→caption tighten because they are one
-   object, then a wide gap separates the next group.                       */
+   object, then a wide gap separates the next group.
+
+   The intermission's panel (src/intermission.css) reproduces this same stack,
+   in the same order, at the same sizes. That is what makes the two surfaces
+   read as one product rather than two apps that happen to ship together.  */
 
 .hero {
   display: grid;
@@ -227,62 +128,13 @@ dd {
   margin-top: var(--s5);
 }
 
-/* Square viewBox now (the generator emits 0 0 100 100), sized so the cup lands
-   at roughly the same optical height as the old 68px one. */
-.cup {
-  width: 84px;
-  height: auto;
-  aspect-ratio: 1;
-  margin-bottom: var(--s2);
-  overflow: visible;
-  filter: drop-shadow(var(--cup-shadow));
-}
-
-.cup-body,
-.cup-handle {
-  fill: none;
-  stroke: var(--cup-stroke);
-  stroke-width: 2.8;
-  stroke-linejoin: round;
-}
-
-.cup-handle {
-  stroke-linecap: round;
-}
-
-/* Filled copy of the body path, sitting between the handle and the liquid. It
-   is what makes the wall thickness visible and what occludes the handle join. */
-.cup-wall {
-  fill: var(--cup-body);
-}
-
-/* The liquid's top face plus its meniscus, matching COFFEE_SURFACE and CREMA in
-   tools/render_mug.py. Opaque: at 0.55 alpha the ellipse's upper half sat over
-   the light cup interior and washed out to nothing. */
-.cup-crema {
-  fill: #8a4a22;
-  stroke: rgba(255, 206, 143, 0.55);
-  stroke-width: 1.6;
-}
-
-/* Translate, never scale: the liquid's surface ellipse rides along at a
-   constant 7.3 units instead of being squashed by the transform that moves it. */
-#coffee-progress-fill {
-  transition: transform 220ms linear, opacity 180ms ease;
-}
-
-#timer-display {
-  font-size: 36px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
+/* The cup art and the large time readout are in shared.css: the intermission
+   draws the same two things. */
 
 .hero-caption {
   margin-top: var(--s1);
   color: var(--label-secondary);
-  font-size: 15px;
+  font-size: var(--t-body);
 }
 
 /* ── Segmented control ───────────────────────────────────────────────── */
@@ -310,7 +162,7 @@ dd {
   transition: transform var(--dur-thumb) var(--ease);
 }
 
-/* The popup remounts on every open — without this the thumb would slide in
+/* The popup remounts on every open, so without this the thumb would slide in
    from index 0 every single time. JS removes .no-anim after first paint. */
 .segmented.no-anim .segmented-thumb {
   transition: none;
@@ -326,7 +178,7 @@ dd {
   background: transparent;
   color: var(--label);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--t-small);
   font-weight: 500;
   cursor: pointer;
   transition: color var(--dur) var(--ease), opacity var(--dur) var(--ease);
@@ -360,7 +212,7 @@ dd {
 .lock-note,
 .brew-copy {
   color: var(--label-secondary);
-  font-size: 14px;
+  font-size: var(--t-small);
 }
 
 /* ── Actions ─────────────────────────────────────────────────────────── */
@@ -370,52 +222,6 @@ dd {
   gap: var(--s2);
   justify-items: start;
   margin-top: var(--s5);
-}
-
-.button-primary {
-  width: 100%;
-  min-height: 38px;
-  border: 0;
-  border-radius: var(--r-card);
-  background: var(--cta);
-  color: var(--on-cta);
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background var(--dur) var(--ease);
-}
-
-.button-primary:hover {
-  background: var(--cta-hover);
-}
-
-/* Press feedback is a value shift, not a scale: the button is full-bleed
-   between two 20px gutters, and a transform makes those gutters visibly
-   breathe. Faster than --dur so the press feels attached to the finger. */
-.button-primary:active {
-  background: var(--cta-pressed);
-  transition-duration: 60ms;
-}
-
-/* A neutral pill, not coloured text. Stripping the accent off a bare text
-   button would leave it indistinguishable from the label sitting next to it,
-   so the affordance has to move from colour to shape, which is what the
-   system-settings "Change…" button does for the same reason. */
-.button-plain {
-  padding: 4px 10px;
-  border: 0;
-  border-radius: var(--r-seg);
-  background: var(--fill-tertiary);
-  color: var(--label);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background var(--dur) var(--ease);
-}
-
-.button-plain:hover {
-  background: var(--fill-secondary);
 }
 
 /* ── Settings rows ───────────────────────────────────────────────────── */
@@ -433,7 +239,7 @@ dd {
   min-height: 40px;
   padding: var(--s2) 0;
   border-bottom: 1px solid var(--separator);
-  font-size: 15px;
+  font-size: var(--t-body);
 }
 
 .row:last-child {
@@ -452,7 +258,7 @@ dd {
 .settings-note {
   margin-top: var(--s4);
   color: var(--label-tertiary);
-  font-size: 13px;
+  font-size: var(--t-caption);
 }
 
 input[role="switch"] {
@@ -475,7 +281,7 @@ input[role="switch"]::before {
   height: 20px;
   margin: 2px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--switch-knob);
   box-shadow: var(--shadow-thumb);
   transition: transform var(--dur) var(--ease);
 }
@@ -501,7 +307,7 @@ input[role="switch"]:checked::before {
 @media (prefers-reduced-motion: reduce) {
   .pane,
   .segmented-thumb,
-  #coffee-progress-fill,
+  .cup-liquid,
   input[role="switch"]::before {
     transition-duration: 0s;
   }

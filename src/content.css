@@ -1,3 +1,13 @@
+/* The two host elements, styled from the page's own stylesheet because a host
+   cannot position itself from inside its shadow root. Everything else lives in
+   src/float.css and src/intermission.css, adopted into the shadow roots.
+
+   `all: initial` first in each rule: these elements sit in an arbitrary
+   page's DOM, and a site-wide `div { position: static !important }` or an
+   inherited font is otherwise ours to inherit. It does not touch custom
+   properties, which is how the geometry and sizing properties set from
+   applySettings() reach through the shadow boundary. */
+
 #coffeecat-root {
   all: initial;
   position: fixed;
@@ -11,10 +21,14 @@
   pointer-events: auto;
 }
 
-#coffeecat-break-root {
+#coffeecat-intermission-root {
   all: initial;
   position: fixed;
   z-index: 2147483647;
   inset: 0;
-  pointer-events: auto;
+  /* The intermission paints over the page; it does not take it over. The panel
+     inside re-enables hits on itself (see :host and .intermission-panel in
+     intermission.css). A full-viewport `auto` here swallowed every click on the
+     host page for the whole five minutes, with no way out but the buttons. */
+  pointer-events: none;
 }

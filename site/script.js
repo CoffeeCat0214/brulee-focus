@@ -2,6 +2,8 @@ const { FILL_WINDOW, DRAIN_RANGE } = globalThis.COFFEECAT_MUG;
 
 const demoCup = document.querySelector(".demo-cup");
 const demoFill = document.getElementById("demo-fill");
+const navToggle = document.querySelector(".nav-toggle");
+const siteNav = document.getElementById("site-nav");
 
 // Place the clip window from the generated geometry rather than hand-tuned
 // percentages. The liquid sprite is drawn on the full mug canvas, so it is
@@ -58,6 +60,27 @@ function sync() {
 document.addEventListener("visibilitychange", sync);
 reduceMotion.addEventListener("change", sync);
 sync();
+
+/* ---------- Mobile navigation ----------
+   The section spine is useful on a long page, so mobile keeps it as a small
+   disclosure instead of removing orientation altogether. */
+
+function setNavOpen(open) {
+  siteNav.classList.toggle("is-open", open);
+  navToggle.setAttribute("aria-expanded", String(open));
+}
+
+navToggle.addEventListener("click", () => {
+  setNavOpen(navToggle.getAttribute("aria-expanded") !== "true");
+});
+
+for (const link of siteNav.querySelectorAll("a")) {
+  link.addEventListener("click", () => setNavOpen(false));
+}
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setNavOpen(false);
+});
 
 /* ---------- Scroll reveal ----------
    The one piece of motion both reference sites lean on. Kept deliberately

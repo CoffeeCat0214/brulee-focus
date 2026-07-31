@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CoffeeCat privacy policy</title>
+    <meta name="description" content="CoffeeCat collects nothing. This page is the formal statement of that, and the URL given to the Chrome Web Store.">
+
+    <!-- Same relative-path rule as index.html: serve the repo root, not site/,
+         or ../assets 404s. -->
+    <link rel="icon" href="../assets/icons/icon-32.png" sizes="32x32">
+    <link rel="apple-touch-icon" href="../assets/icons/icon-128.png">
+    <link rel="preload" href="fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="nav">
+      <div class="wrap nav-inner">
+        <a class="nav-mark" href="index.html">
+          <img src="../assets/icons/icon-48.png" alt="">
+          CoffeeCat
+        </a>
+        <nav class="nav-links" aria-label="Sections">
+          <a href="index.html">Back to CoffeeCat</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- No data-reveal attributes anywhere on this page. index.html fades its
+         sections in on scroll, which is fine for a marketing page; a policy
+         someone has been sent to read should be readable the instant it loads,
+         including with JavaScript off. This page loads no scripts at all. -->
+    <main id="top">
+      <section class="act">
+        <div class="wrap act-grid">
+          <div class="act-label">
+            <p class="eyebrow">Privacy policy</p>
+          </div>
+          <div class="act-body">
+            <div class="section-head">
+              <h2>CoffeeCat collects nothing.</h2>
+              <p>Last updated 30 July 2026. This policy covers the CoffeeCat Chrome extension. It is short because there is very little to describe: the extension has no server, so there is nowhere for anything to be sent.</p>
+            </div>
+
+            <div class="rows">
+              <article class="row">
+                <span class="row-num" aria-hidden="true">01</span>
+                <h3>What is collected</h3>
+                <p>Nothing. CoffeeCat has no backend, no analytics, no telemetry, no crash reporting, no advertising and no accounts. It makes no network requests of any kind. Nothing about you or your browsing is transmitted anywhere, because there is no destination.</p>
+              </article>
+
+              <article class="row">
+                <span class="row-num" aria-hidden="true">02</span>
+                <h3>What is stored, and where</h3>
+                <div class="row-prose">
+                  <p>Your settings are held in <code>chrome.storage.local</code>, which lives on your own computer and is not synced to your Google account or anywhere else. That is: whether the cat is shown, her size, her position on the page, the state of the focus timer, and a local tally of finished sessions, minutes protected and cups emptied.</p>
+                  <p>Uninstalling CoffeeCat removes all of it. Nothing survives the uninstall and there is no copy elsewhere.</p>
+                </div>
+              </article>
+
+              <article class="row">
+                <span class="row-num" aria-hidden="true">03</span>
+                <h3>What is never read</h3>
+                <p>CoffeeCat does not read your browsing history, the contents of the pages you visit, form fields, cookies, passwords or anything you type. Its content script draws the cat into a closed shadow root and reads nothing back out of the page it is drawn on.</p>
+              </article>
+
+              <article class="row">
+                <span class="row-num" aria-hidden="true">04</span>
+                <h3>Permissions, and why</h3>
+                <div class="row-prose">
+                  <p>CoffeeCat requests two: <code>storage</code>, to keep the settings above, and <code>alarms</code>, so a focus session can end at the right moment even when no page is open. It requests no host permissions.</p>
+                  <p>Chrome will still warn that the extension can &ldquo;read and change your data on the websites you visit&rdquo;. That warning is triggered by the content script needing to run on ordinary pages in order to draw a cat on them. It describes what Chrome permits, not what CoffeeCat does. What CoffeeCat does is in the source, which is public.</p>
+                </div>
+              </article>
+
+              <article class="row">
+                <span class="row-num" aria-hidden="true">05</span>
+                <h3>Children, and third parties</h3>
+                <p>CoffeeCat is suitable for all ages and collects no data from anyone, including children. No data is sold, shared or transferred to third parties, because none is collected. There are no third-party services, SDKs or fonts loaded by the extension.</p>
+              </article>
+
+              <article class="row">
+                <span class="row-num" aria-hidden="true">06</span>
+                <h3>Changes, and contact</h3>
+                <div class="row-prose">
+                  <p>If this policy ever changes, the revised version will appear at this URL with a new date above, and any change that affects what is collected will ship alongside an extension update describing it.</p>
+                  <p>Questions about privacy can go to <a href="mailto:kauchakmk@gmail.com">kauchakmk@gmail.com</a>.</p>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <span class="footer-mark">
+          <img src="../assets/icons/icon-48.png" alt="">
+          CoffeeCat
+        </span>
+        <p>Crème Brûlée, cat in residence, keeping you company while you browse.</p>
+        <small>Set in Geist and Geist Mono by Vercel, licensed under the SIL Open Font License.</small>
+      </div>
+    </footer>
+  </body>
+</html>

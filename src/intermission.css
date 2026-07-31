@@ -1,0 +1,247 @@
+/* ── The intermission: the coffee rise + the panel ────────────────────────
+   Adopted into #coffeecat-intermission-root's closed shadow root alongside
+   shared.css. See loadSheet() in content.js.
+
+   What this surface is: the one moment the product takes the screen. A focus
+   session ends, coffee rises over the page, and a small panel says how long
+   the intermission has left. It is deliberately the only place in the extension where
+   brown is allowed to dominate.
+
+   What changed: it used to be a separate design system. Its own font stack
+   (an 800-weight Inter that is not bundled anywhere in this extension, so it
+   silently fell back to whatever the host page had), its own browns -- the
+   exact three the popup documents as deleted -- 4px borders, hard-offset
+   sticker shadows, 18/26/5px spacing off the 4pt grid, six type sizes, and
+   three buttons of which one did nothing at all. It now reads the same tokens
+   as the popup and reproduces the popup's hero stack: cup, time, caption, and
+   a calm two-choice action group. The rise is the only thing left that is
+   unique to it.                                                        */
+
+:host {
+  all: initial;
+  /* Re-declared after `all: initial`, which resets it. */
+  color-scheme: light dark;
+  /* The intermission paints over the page; it does not take it over. Only the
+     panel
+     re-enables hits, below. Before this, a full-viewport pointer-events: auto
+     layer swallowed every click on the host page for the whole five minutes,
+     also made the marketing site's "Nothing is blocked" claim false. */
+  pointer-events: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.intermission {
+  position: fixed;
+  inset: 0;
+  /* Same max int32 as the host element in content.css. Repeated here because
+     the shadow tree has its own stacking context. */
+  z-index: 2147483647;
+  display: grid;
+  place-items: center;
+  padding: var(--s6);
+  overflow: hidden;
+  color: var(--label);
+  font-family: var(--font);
+  font-size: var(--t-body);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── The rise ────────────────────────────────────────────────────────────
+   Rises from the bottom edge over --dur-scene. Colours are the generator's
+   coffee palette (COFFEE_TOP / COFFEE_BOT / COFFEE_SURFACE / CREMA via
+   shared.css), so this is the same liquid as both cups rather than a fourth
+   set of invented browns.
+
+   Not fully opaque: the page ghosting through is what makes it read as coffee
+   poured over the page rather than a modal backdrop. The old sepia
+   backdrop-filter is gone -- under a 0.92 fill it was doing nothing visible
+   and cost a full-viewport GPU pass every frame of the rise.               */
+
+.coffee-rise {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--coffee-top), var(--coffee-bot));
+  opacity: 0.92;
+  transform: scaleY(0);
+  transform-origin: center bottom;
+  animation: coffeeRise var(--dur-scene) var(--ease) forwards;
+}
+
+/* The liquid's surface, seen at a glancing angle: the same ellipse-and-crema
+   idiom as the cups, at viewport scale. */
+.coffee-rise::before {
+  content: "";
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  top: -18px;
+  height: 42px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 20% 50%, color-mix(in srgb, var(--crema) 38%, transparent), transparent 34%),
+    radial-gradient(ellipse at 70% 48%, color-mix(in srgb, var(--crema) 24%, transparent), transparent 30%),
+    var(--coffee-surface);
+}
+
+.coffee-wave {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  top: -20px;
+  height: 38px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--crema) 20%, transparent);
+  animation: coffeeWave 2200ms ease-in-out infinite alternate;
+}
+
+.wave-b {
+  top: -8px;
+  opacity: 0.55;
+  animation-delay: 500ms;
+  animation-duration: 2800ms;
+}
+
+/* ── The panel ───────────────────────────────────────────────────────────
+   360px wide with 20px padding, which is the popup's width and the popup's
+   gutter, so the content column is the same 320px measure. Left-aligned on
+   the same spine, in the same order, at the same sizes. That correspondence
+   is the whole point: the two surfaces should read as one product.
+
+   No border. The fill and the shadow already separate it from the rise, and
+   a stroke would be a third way of saying the same thing.                  */
+
+.intermission-panel {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: start;
+  width: 360px;
+  max-width: 100%;
+  padding: var(--s5);
+  border-radius: var(--r-card);
+  background: var(--bg);
+  box-shadow: var(--shadow-panel);
+  opacity: 0;
+  /* Arrives once the coffee has most of the way risen, so the two events read
+     as one: coffee lands, then the panel surfaces on it. The old 1050ms delay
+     left a beat of empty brown that felt like a hang. */
+  animation: panelAppear var(--dur) var(--ease) 600ms forwards;
+}
+
+.intermission-caption {
+  margin: var(--s1) 0 0;
+  color: var(--label-secondary);
+}
+
+/* The action group is deliberately explicit: refilling is the forward path;
+   Snooze is the low-pressure way to leave without starting again. Both are
+   full-width, 44px targets so the choice remains easy on touch and keyboard. */
+.intermission-actions {
+  display: grid;
+  width: 100%;
+  gap: var(--s2);
+  margin-top: var(--s5);
+}
+
+.intermission-panel .button-primary,
+.intermission-panel .button-secondary {
+  min-height: 44px;
+}
+
+.button-secondary {
+  width: 100%;
+  min-height: 38px;
+  border: 0;
+  border-radius: var(--r-card);
+  background: var(--fill-tertiary);
+  color: var(--label);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease);
+}
+
+.button-secondary:hover {
+  background: var(--fill-secondary);
+}
+
+.button-secondary:active {
+  background: var(--fill-secondary);
+  transition-duration: 60ms;
+}
+
+.intermission-choice-note {
+  margin: var(--s2) 0 0;
+  color: var(--label-secondary);
+  font-size: var(--t-caption);
+  text-align: center;
+}
+
+/* The session's payoff, at the weight of a footnote. The popup deliberately
+   carries no stats block at all; this is one line, not a panel. */
+.intermission-stats {
+  margin: var(--s4) 0 0;
+  color: var(--label-tertiary);
+  font-size: var(--t-caption);
+}
+
+@keyframes coffeeRise {
+  0% { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes coffeeWave {
+  0% { transform: translateX(-24px) scaleX(1.04); }
+  100% { transform: translateX(24px) scaleX(0.96); }
+}
+
+@keyframes panelAppear {
+  100% { opacity: 1; }
+}
+
+/* Both the rise and the panel rest in an invisible state -- scaleY(0)
+   and opacity 0 -- and are only made visible by their animations. So
+   "animation: none" alone hides the intermission entirely instead of calming
+   it. Every rule here has to restore the end state by hand. site's
+   styles.css solves the same trap the same way. */
+@media (prefers-reduced-motion: reduce) {
+  .coffee-rise {
+    animation: none;
+    transform: none;
+  }
+
+  .coffee-wave {
+    animation: none;
+  }
+
+  .intermission-panel {
+    animation: none;
+    opacity: 1;
+  }
+
+  /* The cup still fills -- it is the intermission's progress indicator, not
+     decoration -- it just does it without easing. */
+  .cup-liquid {
+    transition: none;
+  }
+}
+
+/* The panel is a fixed 360px because that is the popup's measure. Below that
+   plus gutters it becomes fluid rather than clipping. */
+@media (max-width: 420px) {
+  .intermission {
+    padding: var(--s4);
+  }
+
+  .intermission-panel {
+    width: 100%;
+    padding: var(--s4);
+  }
+}
