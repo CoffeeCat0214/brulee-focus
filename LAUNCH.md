@@ -113,16 +113,17 @@ crawlers require and which the repo cannot hardcode.
 You get:
 
 - Site: `https://bruleefocus.com/`
-- Policy: `https://bruleefocus.com/privacy.html`, and `…/privacy` if Cloudflare's
-  clean-URL resolution is doing what it documents
+- Policy: `https://bruleefocus.com/privacy`
 
-**Check both before you paste either into the dashboard**, in a private window.
-Cloudflare Pages documents serving `/privacy` for `privacy.html`, but that is
-their behaviour and not something this repo controls, and a 404 on the privacy
-URL is an automatic rejection. `/privacy.html` is the one that cannot break, so
-use it unless you have confirmed the short form resolves. A local
-`python3 -m http.server` will always 404 on `/privacy`; it has no clean-URL
-resolution, so it cannot answer this question for you.
+Use the **extensionless** form. Verified against the live deployment on
+2026-07-30: Cloudflare Pages serves `/privacy` with a 200 and 308-redirects
+`/privacy.html` to it, so the short form is the canonical one. Both work in a
+browser, but the listing should carry the URL that answers directly rather than
+one that bounces.
+
+A local `python3 -m http.server` does the opposite: it serves `/privacy.html`
+and 404s on `/privacy`, because it has no clean-URL resolution. So a local
+preview cannot answer this question, and disagreeing with it is expected.
 
 That URL is awkward to change once it is on the listing, so decide it now.
 

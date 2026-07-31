@@ -30,9 +30,8 @@ open /site/) but it makes for two bad deployment options:
 So this stages a third thing: the site at the root of its own tree, with the ten
 `../` references rewritten to plain relative paths, so the policy answers at
 /privacy.html rather than /site/privacy.html. That is the URL that goes in the
-Chrome Web Store listing and is awkward to change later. Cloudflare also
-resolves /privacy to it, but that is their behaviour rather than something this
-build guarantees, so prefer the explicit form on the listing.
+Chrome Web Store listing and is awkward to change later. Cloudflare serves it
+at /privacy and redirects /privacy.html there, so the listing uses /privacy.
 
 Same allowlist discipline as tools/package.py, and for the same reason: a
 denylist fails open, and the whole point is that the deployed tree contains
@@ -230,10 +229,10 @@ def main() -> None:
     print("  Cloudflare Pages (Git integration):")
     print(f"    build command:    python3 tools/build_site.py --domain <domain>")
     print(f"    output directory: {out_dir.relative_to(ROOT)}")
-    # privacy.html, not /privacy: Cloudflare's clean-URL resolution is their
-    # behaviour, not something this build controls, and the privacy URL is the
-    # one field on the store form where a 404 is an automatic rejection.
-    print(f"  Policy URL:       {origin or 'https://<domain>'}/privacy.html")
+    # Extensionless. Verified against the live Pages deployment: /privacy is
+    # the 200 and /privacy.html 308-redirects to it. A local http.server does
+    # the reverse, so do not "fix" this from a local preview.
+    print(f"  Policy URL:       {origin or 'https://<domain>'}/privacy")
     if not origin:
         print("  (pass --domain to make og:image absolute for link previews)")
 
