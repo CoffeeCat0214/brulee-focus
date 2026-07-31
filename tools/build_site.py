@@ -7,8 +7,12 @@ Run from the repo root:
     python3 tools/build_site.py --list       # print what would go in, and stop
     python3 tools/build_site.py --out build  # somewhere else
 
-Then point Cloudflare Pages (or anything else) at `dist/site` as the output
-directory, with no build command.
+On Cloudflare Pages with Git integration, this IS the build command:
+
+    build command:    python3 tools/build_site.py --domain bruleefocus.com
+    output directory: dist/site
+
+so every push to main redeploys the site.
 
 Why this exists
 ---------------
@@ -24,10 +28,11 @@ open /site/) but it makes for two bad deployment options:
 2. Deploy site/ alone. Every sprite, icon and the mug geometry 404s.
 
 So this stages a third thing: the site at the root of its own tree, with the ten
-`../` references rewritten to plain relative paths. `privacy.html` then answers
-at /privacy (Cloudflare Pages resolves extensionless paths to .html), which is
-the URL that goes in the Chrome Web Store listing and is awkward to change
-later.
+`../` references rewritten to plain relative paths, so the policy answers at
+/privacy.html rather than /site/privacy.html. That is the URL that goes in the
+Chrome Web Store listing and is awkward to change later. Cloudflare also
+resolves /privacy to it, but that is their behaviour rather than something this
+build guarantees, so prefer the explicit form on the listing.
 
 Same allowlist discipline as tools/package.py, and for the same reason: a
 denylist fails open, and the whole point is that the deployed tree contains
