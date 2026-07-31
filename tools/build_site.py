@@ -34,6 +34,12 @@ denylist fails open, and the whole point is that the deployed tree contains
 nothing but the site.
 """
 
+# Deferred annotation evaluation, so `str | None` and `tuple[list[Path], ...]`
+# below do not require Python 3.10 at import time. This script runs in
+# Cloudflare Pages' build image as well as locally, and pinning a floor there is
+# a build failure waiting for whenever that image changes under us.
+from __future__ import annotations
+
 import argparse
 import re
 import shutil
@@ -216,8 +222,9 @@ def main() -> None:
     print(f"{out_dir.relative_to(ROOT) if out_dir.is_relative_to(ROOT) else out_dir}")
     print(f"  {len(files)} files, {total:,} bytes")
     print()
-    print("  Cloudflare Pages: build command empty, output directory "
-          f"'{out_dir.relative_to(ROOT)}'")
+    print("  Cloudflare Pages (Git integration):")
+    print(f"    build command:    python3 tools/build_site.py --domain <domain>")
+    print(f"    output directory: {out_dir.relative_to(ROOT)}")
     # privacy.html, not /privacy: Cloudflare's clean-URL resolution is their
     # behaviour, not something this build controls, and the privacy URL is the
     # one field on the store form where a 404 is an automatic rejection.
